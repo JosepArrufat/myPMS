@@ -29,7 +29,7 @@ export const promotionsCodeIdx = uniqueIndex('idx_promotions_code').on(promotion
 export const promotionsActiveIdx = index('idx_promotions_active').on(promotions.isActive);
 export const promotionsDatesIdx = index('idx_promotions_dates')
   .on(promotions.validFrom, promotions.validTo)
-  .where(promotions.isActive.eq(true));
+  .where(sql`${promotions.isActive} = true`);
 // Active promotions
 export const promotionsActiveValidIdx = index('idx_promotions_active_valid')
   .on(promotions.isActive, promotions.validFrom, promotions.validTo)

@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, decimal, boolean, timestamp, date, jsonb, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, decimal, boolean, timestamp, date, jsonb, pgEnum, index, uniqueIndex, AnyPgColumn } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export const roomStatusEnum = pgEnum('room_status', [
@@ -51,7 +51,7 @@ export const rooms = pgTable('rooms', {
   status: roomStatusEnum('status').notNull().default('available'),
   
   hasConnectingDoor: boolean('has_connecting_door').default(false),
-  connectingRoomId: integer('connecting_room_id').references(() => rooms.id),
+  connectingRoomId: integer('connecting_room_id').references((): AnyPgColumn => rooms.id),
   isAccessible: boolean('is_accessible').default(false),
   
   lastDeepClean: date('last_deep_clean'),

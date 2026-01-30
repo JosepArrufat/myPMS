@@ -1,4 +1,19 @@
-import { pgTable, serial, uuid, varchar, text, decimal, date, timestamp, integer, boolean, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { 
+  pgTable, 
+  serial, 
+  uuid, 
+  varchar, 
+  text, 
+  decimal, 
+  date, 
+  timestamp,
+  integer, 
+  boolean, 
+  pgEnum, 
+  index, 
+  uniqueIndex,
+  AnyPgColumn
+} from 'drizzle-orm/pg-core';
 import { reservations } from './reservations';
 import { guests } from './guests';
 import { rooms } from './rooms';
@@ -55,7 +70,7 @@ export const invoices = pgTable('invoices', {
   discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull().default('0'),
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull().default('0'),
   paidAmount: decimal('paid_amount', { precision: 10, scale: 2 }).notNull().default('0'),
-  balance: decimal('balance', { precision: 10, scale: 2 }).notNull().default('0'),
+  balance: decimal('balance', { precision: 10, scale: 2 }).notNull().default('0'), // Can be negative for credits
   
   currency: varchar('currency', { length: 3 }).default('USD'),
   
@@ -110,7 +125,6 @@ export const invoiceItems = pgTable('invoice_items', {
 export const invoiceItemsInvoiceIdx = index('idx_invoice_items_invoice').on(invoiceItems.invoiceId);
 export const invoiceItemsTypeIdx = index('idx_invoice_items_type').on(invoiceItems.itemType);
 export const invoiceItemsDateIdx = index('idx_invoice_items_date').on(invoiceItems.dateOfService);
-export const invoiceItemsRoomIdx = index('idx_invoice_items_room').on(invoiceItems.roomId);
 
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
@@ -128,7 +142,7 @@ export const payments = pgTable('payments', {
   exchangeRate: decimal('exchange_rate', { precision: 10, scale: 6 }).default('1'),
   
   isRefund: boolean('is_refund').default(false),
-  refundedPaymentId: integer('refunded_payment_id').references(() => payments.id),
+  refundedPaymentId: integer('refunded_payment_id').references((): AnyPgColumn => payments.id),
   
   notes: text('notes'),
   
@@ -139,7 +153,7 @@ export const payments = pgTable('payments', {
 export const paymentsInvoiceIdx = index('idx_payments_invoice').on(payments.invoiceId);
 export const paymentsDateIdx = index('idx_payments_date').on(payments.paymentDate);
 export const paymentsMethodIdx = index('idx_payments_method').on(payments.paymentMethod);
-export const paymentsRefundIdx = index('idx_payments_refund').on(payments.isRefund).where(payments.isRefund.eq(true));
+export const paymentsRefundIdx = index('idx_payments_refund').on(payments.isRefund).where(sql`${payments.isRefund} = true`);
 
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;

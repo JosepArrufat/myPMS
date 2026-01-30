@@ -1,4 +1,5 @@
 import { pgTable, serial, varchar, text, integer, decimal, boolean, date, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { roomTypes } from './rooms';
 
 export const ratePlans = pgTable('rate_plans', {
@@ -32,7 +33,7 @@ export const ratePlansCodeIdx = uniqueIndex('idx_rate_plans_code').on(ratePlans.
 export const ratePlansActiveIdx = index('idx_rate_plans_active').on(ratePlans.isActive);
 export const ratePlansDatesIdx = index('idx_rate_plans_dates')
   .on(ratePlans.validFrom, ratePlans.validTo)
-  .where(ratePlans.isActive.eq(true));
+  .where(sql`${ratePlans.isActive} = true`);
 
 export const roomTypeRates = pgTable('room_type_rates', {
   id: serial('id').primaryKey(),
