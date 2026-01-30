@@ -1,18 +1,18 @@
-import { 
-  pgTable, 
-  serial, 
-  uuid, 
-  varchar, 
-  text, 
-  decimal, 
-  date, 
+import {
+  pgTable,
+  serial,
+  uuid,
+  varchar,
+  text,
+  decimal,
+  date,
   timestamp,
-  integer, 
-  boolean, 
-  pgEnum, 
-  index, 
+  integer,
+  boolean,
+  pgEnum,
+  index,
   uniqueIndex,
-  AnyPgColumn
+  AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { reservations } from './reservations';
 import { guests } from './guests';
@@ -28,6 +28,13 @@ export const invoiceStatusEnum = pgEnum('invoice_status', [
   'overdue',
   'void',
   'refunded'
+]);
+
+export const invoiceTypeEnum = pgEnum('invoice_type', [
+  'final',
+  'deposit',
+  'adjustment',
+  'cancellation'
 ]);
 
 export const paymentMethodEnum = pgEnum('payment_method', [
@@ -56,6 +63,8 @@ export const invoiceItemTypeEnum = pgEnum('invoice_item_type', [
 export const invoices = pgTable('invoices', {
   id: uuid('id').primaryKey().defaultRandom(),
   invoiceNumber: varchar('invoice_number', { length: 50 }).notNull().unique(),
+
+  invoiceType: invoiceTypeEnum('invoice_type').notNull().default('final'),
   
   reservationId: uuid('reservation_id').references(() => reservations.id),
   guestId: uuid('guest_id').notNull().references(() => guests.id),
@@ -81,7 +90,7 @@ export const invoices = pgTable('invoices', {
   internalNotes: text('internal_notes'),
   
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
 });
 

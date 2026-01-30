@@ -1,4 +1,19 @@
-import { pgTable, serial, uuid, varchar, text, integer, decimal, date, timestamp, boolean, pgEnum, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  serial,
+  uuid,
+  varchar,
+  text,
+  integer,
+  decimal,
+  date,
+  timestamp,
+  boolean,
+  pgEnum,
+  index,
+  uniqueIndex,
+  primaryKey,
+} from 'drizzle-orm/pg-core';
 import { guests } from './guests';
 import { agencies } from './agencies';
 import { ratePlans } from './rates';
@@ -62,7 +77,7 @@ export const reservations = pgTable('reservations', {
   cancellationFee: decimal('cancellation_fee', { precision: 10, scale: 2 }),
   
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
 });
 

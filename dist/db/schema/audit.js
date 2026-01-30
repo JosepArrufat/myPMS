@@ -1,4 +1,4 @@
-import { pgTable, bigserial, varchar, text, jsonb, timestamp, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, bigserial, varchar, text, jsonb, timestamp, integer, index, } from 'drizzle-orm/pg-core';
 import { users } from './users';
 export const auditLog = pgTable('audit_log', {
     id: bigserial('id', { mode: 'bigint' }).primaryKey(),

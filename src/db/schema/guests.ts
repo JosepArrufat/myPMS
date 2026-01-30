@@ -1,7 +1,16 @@
-import { 
-  pgTable, 
-  serial, 
-  uuid, varchar, text, date, boolean, timestamp, jsonb, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  serial,
+  uuid,
+  varchar,
+  text,
+  date,
+  boolean,
+  timestamp,
+  jsonb,
+  pgEnum,
+  index,
+} from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { sql } from 'drizzle-orm';
 
@@ -56,7 +65,7 @@ export const guests = pgTable('guests', {
   
   // Metadata
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: serial('created_by').references(() => users.id),
 });
 

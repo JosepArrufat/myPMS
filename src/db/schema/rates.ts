@@ -1,6 +1,24 @@
-import { pgTable, serial, varchar, text, integer, decimal, boolean, date, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  serial,
+  varchar,
+  text,
+  integer,
+  decimal,
+  boolean,
+  date,
+  timestamp,
+  index,
+  uniqueIndex,
+  pgEnum,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { roomTypes } from './rooms';
+
+export const rateAdjustmentTypeEnum = pgEnum('rate_adjustment_type', [
+  'amount',
+  'percent'
+]);
 
 export const ratePlans = pgTable('rate_plans', {
   id: serial('id').primaryKey(),
@@ -26,7 +44,7 @@ export const ratePlans = pgTable('rate_plans', {
   validTo: date('valid_to'),
   
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 
 export const ratePlansCodeIdx = uniqueIndex('idx_rate_plans_code').on(ratePlans.code);
@@ -67,7 +85,26 @@ export const roomTypeRatesDatesIdx = index('idx_room_type_rates_dates').on(
 );
 export const roomTypeRatesRoomTypeIdx = index('idx_room_type_rates_room_type').on(roomTypeRates.roomTypeId);
 
+export const roomTypeRateAdjustments = pgTable('room_type_rate_adjustments', {
+  id: serial('id').primaryKey(),
+  baseRoomTypeId: integer('base_room_type_id').notNull().references(() => roomTypes.id),
+  derivedRoomTypeId: integer('derived_room_type_id').notNull().references(() => roomTypes.id),
+  ratePlanId: integer('rate_plan_id').references(() => ratePlans.id),
+  adjustmentType: rateAdjustmentTypeEnum('adjustment_type').notNull().default('amount'),
+  adjustmentValue: decimal('adjustment_value', { precision: 10, scale: 2 }).notNull(),
+  allowOverride: boolean('allow_override').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const roomTypeRateAdjustmentsIdx = index('idx_room_type_rate_adjustments').on(
+  roomTypeRateAdjustments.baseRoomTypeId,
+  roomTypeRateAdjustments.derivedRoomTypeId,
+  roomTypeRateAdjustments.ratePlanId,
+);
+
 export type RatePlan = typeof ratePlans.$inferSelect;
 export type NewRatePlan = typeof ratePlans.$inferInsert;
 export type RoomTypeRate = typeof roomTypeRates.$inferSelect;
 export type NewRoomTypeRate = typeof roomTypeRates.$inferInsert;
+export type RoomTypeRateAdjustment = typeof roomTypeRateAdjustments.$inferSelect;
+export type NewRoomTypeRateAdjustment = typeof roomTypeRateAdjustments.$inferInsert;

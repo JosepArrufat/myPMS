@@ -1,6 +1,10 @@
-import { pgTable, serial, varchar, text, integer, decimal, boolean, date, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, decimal, boolean, date, timestamp, index, uniqueIndex, pgEnum, } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { roomTypes } from './rooms';
+export const rateAdjustmentTypeEnum = pgEnum('rate_adjustment_type', [
+    'amount',
+    'percent'
+]);
 export const ratePlans = pgTable('rate_plans', {
     id: serial('id').primaryKey(),
     name: varchar('name', { length: 100 }).notNull(),
@@ -20,7 +24,7 @@ export const ratePlans = pgTable('rate_plans', {
     validFrom: date('valid_from'),
     validTo: date('valid_to'),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 export const ratePlansCodeIdx = uniqueIndex('idx_rate_plans_code').on(ratePlans.code);
 export const ratePlansActiveIdx = index('idx_rate_plans_active').on(ratePlans.isActive);
@@ -47,3 +51,14 @@ export const roomTypeRates = pgTable('room_type_rates', {
 export const roomTypeRatesLookupIdx = index('idx_room_type_rates_lookup').on(roomTypeRates.roomTypeId, roomTypeRates.ratePlanId, roomTypeRates.startDate, roomTypeRates.endDate);
 export const roomTypeRatesDatesIdx = index('idx_room_type_rates_dates').on(roomTypeRates.startDate, roomTypeRates.endDate);
 export const roomTypeRatesRoomTypeIdx = index('idx_room_type_rates_room_type').on(roomTypeRates.roomTypeId);
+export const roomTypeRateAdjustments = pgTable('room_type_rate_adjustments', {
+    id: serial('id').primaryKey(),
+    baseRoomTypeId: integer('base_room_type_id').notNull().references(() => roomTypes.id),
+    derivedRoomTypeId: integer('derived_room_type_id').notNull().references(() => roomTypes.id),
+    ratePlanId: integer('rate_plan_id').references(() => ratePlans.id),
+    adjustmentType: rateAdjustmentTypeEnum('adjustment_type').notNull().default('amount'),
+    adjustmentValue: decimal('adjustment_value', { precision: 10, scale: 2 }).notNull(),
+    allowOverride: boolean('allow_override').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+export const roomTypeRateAdjustmentsIdx = index('idx_room_type_rate_adjustments').on(roomTypeRateAdjustments.baseRoomTypeId, roomTypeRateAdjustments.derivedRoomTypeId, roomTypeRateAdjustments.ratePlanId);

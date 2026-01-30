@@ -1,4 +1,4 @@
-import { pgTable, date, integer, decimal, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
+import { pgTable, date, integer, decimal, timestamp, primaryKey, index, } from 'drizzle-orm/pg-core';
 import { roomTypes } from './rooms';
 export const dailyRevenue = pgTable('daily_revenue', {
     date: date('date').primaryKey(),

@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, decimal, boolean, timestamp, date, jsonb, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, decimal, boolean, timestamp, date, jsonb, pgEnum, index, uniqueIndex, } from 'drizzle-orm/pg-core';
 export const roomStatusEnum = pgEnum('room_status', [
     'available',
     'occupied',
@@ -23,7 +23,7 @@ export const roomTypes = pgTable('room_types', {
     sortOrder: integer('sort_order').default(0),
     isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 export const roomTypesNameIdx = uniqueIndex('idx_room_types_name').on(roomTypes.name);
 export const roomTypesCodeIdx = uniqueIndex('idx_room_types_code').on(roomTypes.code);
@@ -44,7 +44,7 @@ export const rooms = pgTable('rooms', {
     nextMaintenanceDue: date('next_maintenance_due'),
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 export const roomsNumberIdx = uniqueIndex('idx_rooms_number').on(rooms.roomNumber);
 export const roomsTypeIdx = index('idx_rooms_type').on(rooms.roomTypeId);

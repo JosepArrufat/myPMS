@@ -1,4 +1,19 @@
-import { pgTable, serial, varchar, text, integer, decimal, boolean, timestamp, date, jsonb, pgEnum, index, uniqueIndex, AnyPgColumn } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  serial,
+  varchar,
+  text,
+  integer,
+  decimal,
+  boolean,
+  timestamp,
+  date,
+  jsonb,
+  pgEnum,
+  index,
+  uniqueIndex,
+  AnyPgColumn,
+} from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export const roomStatusEnum = pgEnum('room_status', [
@@ -34,7 +49,7 @@ export const roomTypes = pgTable('room_types', {
   isActive: boolean('is_active').default(true),
   
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 
 export const roomTypesNameIdx = uniqueIndex('idx_room_types_name').on(roomTypes.name);
@@ -61,7 +76,7 @@ export const rooms = pgTable('rooms', {
   notes: text('notes'),
   
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 
 export const roomsNumberIdx = uniqueIndex('idx_rooms_number').on(rooms.roomNumber);

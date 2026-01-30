@@ -1,4 +1,16 @@
-import { pgTable, serial, varchar, text, decimal, date, integer, boolean, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  serial,
+  varchar,
+  text,
+  decimal,
+  date,
+  integer,
+  boolean,
+  timestamp,
+  index,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const promotions = pgTable('promotions', {

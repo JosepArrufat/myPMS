@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, boolean, timestamp, pgEnum, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, boolean, timestamp, pgEnum, index, uniqueIndex, primaryKey, } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 export const userRoleEnum = pgEnum('user_role', [
     'admin',
@@ -20,7 +20,7 @@ export const users = pgTable('users', {
     isActive: boolean('is_active').default(true),
     lastLogin: timestamp('last_login'),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
     createdBy: serial('created_by').references(() => users.id),
 });
 export const usersEmailIdx = uniqueIndex('idx_users_email').on(users.email);

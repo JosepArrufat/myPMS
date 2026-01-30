@@ -1,4 +1,4 @@
-import { pgTable, serial, uuid, varchar, text, date, boolean, timestamp, jsonb, pgEnum, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, uuid, varchar, text, date, boolean, timestamp, jsonb, pgEnum, index, } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { sql } from 'drizzle-orm';
 export const guestDocumentTypeEnum = pgEnum('guest_document_type', [
@@ -40,7 +40,7 @@ export const guests = pgTable('guests', {
     loyaltyNumber: varchar('loyalty_number', { length: 50 }),
     // Metadata
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
     createdBy: serial('created_by').references(() => users.id),
 });
 export const guestsEmailIdx = index('idx_guests_email')

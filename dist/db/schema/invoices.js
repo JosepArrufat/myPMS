@@ -1,4 +1,4 @@
-import { pgTable, serial, uuid, varchar, text, decimal, date, timestamp, integer, boolean, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, uuid, varchar, text, decimal, date, timestamp, integer, boolean, pgEnum, index, uniqueIndex, } from 'drizzle-orm/pg-core';
 import { reservations } from './reservations';
 import { guests } from './guests';
 import { rooms } from './rooms';
@@ -12,6 +12,12 @@ export const invoiceStatusEnum = pgEnum('invoice_status', [
     'overdue',
     'void',
     'refunded'
+]);
+export const invoiceTypeEnum = pgEnum('invoice_type', [
+    'final',
+    'deposit',
+    'adjustment',
+    'cancellation'
 ]);
 export const paymentMethodEnum = pgEnum('payment_method', [
     'cash',
@@ -37,6 +43,7 @@ export const invoiceItemTypeEnum = pgEnum('invoice_item_type', [
 export const invoices = pgTable('invoices', {
     id: uuid('id').primaryKey().defaultRandom(),
     invoiceNumber: varchar('invoice_number', { length: 50 }).notNull().unique(),
+    invoiceType: invoiceTypeEnum('invoice_type').notNull().default('final'),
     reservationId: uuid('reservation_id').references(() => reservations.id),
     guestId: uuid('guest_id').notNull().references(() => guests.id),
     issueDate: date('issue_date').notNull().defaultNow(),
@@ -47,14 +54,14 @@ export const invoices = pgTable('invoices', {
     discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull().default('0'),
     totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull().default('0'),
     paidAmount: decimal('paid_amount', { precision: 10, scale: 2 }).notNull().default('0'),
-    balance: decimal('balance', { precision: 10, scale: 2 }).notNull().default('0'),
+    balance: decimal('balance', { precision: 10, scale: 2 }).notNull().default('0'), // Can be negative for credits
     currency: varchar('currency', { length: 3 }).default('USD'),
     taxRate: decimal('tax_rate', { precision: 5, scale: 4 }),
     taxNumber: varchar('tax_number', { length: 50 }),
     notes: text('notes'),
     internalNotes: text('internal_notes'),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
     createdBy: integer('created_by').references(() => users.id),
 });
 export const invoicesNumberIdx = uniqueIndex('idx_invoices_number').on(invoices.invoiceNumber);
