@@ -72,11 +72,9 @@ export const guests = pgTable('guests', {
 export const guestsEmailIdx = index('idx_guests_email')
   .on(guests.email)
   .where(sql`${guests.email} IS NOT NULL`);
-export const guestsPhoneIdx = index('idx_guests_phone').on(guests.phone);
 export const guestsNameIdx = index('idx_guests_name').on(guests.lastName, guests.firstName);
 export const guestsVipIdx = index('idx_guests_vip').on(guests.vipStatus).where(sql`${guests.vipStatus} = true`);
 export const guestsLoyaltyIdx = index('idx_guests_loyalty').on(guests.loyaltyNumber);
-// Note: Full-text search index needs to be created via raw SQL after migration
 
 export type Guest = typeof guests.$inferSelect;
 export type NewGuest = typeof guests.$inferInsert;

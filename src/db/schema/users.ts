@@ -40,8 +40,6 @@ export const users = pgTable('users', {
 });
 
 export const usersEmailIdx = uniqueIndex('idx_users_email').on(users.email);
-export const usersRoleIdx = index('idx_users_role').on(users.role).where(sql`${users.isActive} = true`);
-export const usersActiveIdx = index('idx_users_active').on(users.isActive);
 
 export const permissions = pgTable('permissions', {
   id: serial('id').primaryKey(),

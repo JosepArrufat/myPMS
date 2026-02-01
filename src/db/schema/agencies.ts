@@ -41,8 +41,6 @@ export const agencies = pgTable('agencies', {
 });
 
 export const agenciesCodeIdx = uniqueIndex('idx_agencies_code').on(agencies.code);
-export const agenciesActiveIdx = index('idx_agencies_active').on(agencies.isActive);
-export const agenciesTypeIdx = index('idx_agencies_type').on(agencies.type);
 export const agenciesNameIdx = index('idx_agencies_name').on(agencies.name);
 
 export type Agency = typeof agencies.$inferSelect;

@@ -53,7 +53,6 @@ export const reservations = pgTable('reservations', {
   
   adultsCount: integer('adults_count').notNull().default(1),
   childrenCount: integer('children_count').notNull().default(0),
-  infantsCount: integer('infants_count').default(0),
   
   status: reservationStatusEnum('status').notNull().default('pending'),
   source: varchar('source', { length: 50 }),
@@ -62,8 +61,6 @@ export const reservations = pgTable('reservations', {
   
   specialRequests: text('special_requests'),
   arrivalTime: varchar('arrival_time', { length: 10 }),
-  flightNumber: varchar('flight_number', { length: 20 }),
-  purposeOfVisit: varchar('purpose_of_visit', { length: 50 }),
   observations: text('observations'),
   
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }),
@@ -84,7 +81,6 @@ export const reservations = pgTable('reservations', {
 export const reservationsNumberIdx = uniqueIndex('idx_reservations_number').on(reservations.reservationNumber);
 export const reservationsGuestIdx = index('idx_reservations_guest').on(reservations.guestId);
 export const reservationsDatesIdx = index('idx_reservations_dates').on(reservations.checkInDate, reservations.checkOutDate);
-export const reservationsStatusIdx = index('idx_reservations_status').on(reservations.status);
 export const reservationsCheckInStatusIdx = index('idx_reservations_checkin_status').on(
   reservations.checkInDate,
   reservations.status,
@@ -96,18 +92,9 @@ export const reservationsCheckOutStatusIdx = index('idx_reservations_checkout_st
 export const reservationsAgencyIdx = index('idx_reservations_agency')
   .on(reservations.agencyId)
   .where(sql`${reservations.agencyId} IS NOT NULL`);
-// Partial index for active reservations (most queried)
 export const reservationsActiveIdx = index('idx_reservations_active')
   .on(reservations.checkInDate, reservations.checkOutDate)
   .where(sql`${reservations.status} IN ('confirmed', 'checked_in')`);
-// Today's arrivals
-export const reservationsTodayArrivalsIdx = index('idx_reservations_today_arrivals')
-  .on(reservations.checkInDate)
-  .where(sql`${reservations.status} IN ('confirmed', 'checked_in')`);
-// Today's departures
-export const reservationsTodayDeparturesIdx = index('idx_reservations_today_departures')
-  .on(reservations.checkOutDate)
-  .where(sql`${reservations.status} = 'checked_in'`);
 
 export const reservationRooms = pgTable('reservation_rooms', {
   id: serial('id').primaryKey(),
@@ -129,23 +116,19 @@ export const reservationRooms = pgTable('reservation_rooms', {
 });
 
 export const reservationRoomsReservationIdx = index('idx_reservation_rooms_reservation').on(reservationRooms.reservationId);
-export const reservationRoomsRoomIdx = index('idx_reservation_rooms_room').on(reservationRooms.roomId);
 export const reservationRoomsDatesIdx = index('idx_reservation_rooms_dates').on(
   reservationRooms.checkInDate,
   reservationRooms.checkOutDate,
 );
 export const reservationRoomsTypeIdx = index('idx_reservation_rooms_type').on(reservationRooms.roomTypeId);
-// Critical for availability queries
 export const reservationRoomsAvailabilityIdx = index('idx_reservation_rooms_availability')
   .on(reservationRooms.roomId, reservationRooms.checkInDate, reservationRooms.checkOutDate)
   .where(sql`${reservationRooms.roomId} IS NOT NULL`);
-// Type-based availability
 export const reservationRoomsTypeAvailabilityIdx = index('idx_reservation_rooms_type_availability').on(
   reservationRooms.roomTypeId,
   reservationRooms.checkInDate,
   reservationRooms.checkOutDate,
 );
-// Note: GIST exclusion constraint needs to be added via raw SQL after migration
 
 export const roomAssignments = pgTable('room_assignments', {
   id: serial('id').primaryKey(),
@@ -158,7 +141,6 @@ export const roomAssignments = pgTable('room_assignments', {
   notes: text('notes'),
 });
 
-// Unique constraint: one room per night
 export const roomAssignmentsRoomDateUnique = uniqueIndex('idx_room_assignments_room_date_unique').on(
   roomAssignments.roomId,
   roomAssignments.date,

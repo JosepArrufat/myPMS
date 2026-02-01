@@ -42,7 +42,6 @@ export const promotionsActiveIdx = index('idx_promotions_active').on(promotions.
 export const promotionsDatesIdx = index('idx_promotions_dates')
   .on(promotions.validFrom, promotions.validTo)
   .where(sql`${promotions.isActive} = true`);
-// Active promotions
 export const promotionsActiveValidIdx = index('idx_promotions_active_valid')
   .on(promotions.isActive, promotions.validFrom, promotions.validTo)
   .where(sql`${promotions.isActive} = true AND ${promotions.validFrom} <= CURRENT_DATE AND ${promotions.validTo} >= CURRENT_DATE`);

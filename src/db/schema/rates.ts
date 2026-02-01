@@ -48,10 +48,6 @@ export const ratePlans = pgTable('rate_plans', {
 });
 
 export const ratePlansCodeIdx = uniqueIndex('idx_rate_plans_code').on(ratePlans.code);
-export const ratePlansActiveIdx = index('idx_rate_plans_active').on(ratePlans.isActive);
-export const ratePlansDatesIdx = index('idx_rate_plans_dates')
-  .on(ratePlans.validFrom, ratePlans.validTo)
-  .where(sql`${ratePlans.isActive} = true`);
 
 export const roomTypeRates = pgTable('room_type_rates', {
   id: serial('id').primaryKey(),
@@ -79,11 +75,6 @@ export const roomTypeRatesLookupIdx = index('idx_room_type_rates_lookup').on(
   roomTypeRates.startDate,
   roomTypeRates.endDate,
 );
-export const roomTypeRatesDatesIdx = index('idx_room_type_rates_dates').on(
-  roomTypeRates.startDate,
-  roomTypeRates.endDate,
-);
-export const roomTypeRatesRoomTypeIdx = index('idx_room_type_rates_room_type').on(roomTypeRates.roomTypeId);
 
 export const roomTypeRateAdjustments = pgTable('room_type_rate_adjustments', {
   id: serial('id').primaryKey(),

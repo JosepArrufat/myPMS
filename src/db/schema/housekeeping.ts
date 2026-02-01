@@ -21,6 +21,13 @@ export const maintenancePriorityEnum = pgEnum('maintenance_priority', [
   'urgent',
 ]);
 
+export const maintenanceStatusEnum = pgEnum('maintenance_status', [
+  'open',
+  'in_progress',
+  'completed',
+  'cancelled',
+]);
+
 export const housekeepingTaskTypeEnum = pgEnum('housekeeping_task_type', [
   'client_service',
   'checkout_cleaning',
@@ -71,20 +78,19 @@ export const housekeepingRoomDateIdx = index('idx_housekeeping_room_date').on(
   housekeepingTasks.roomId,
   housekeepingTasks.taskDate,
 );
-export const housekeepingDateStatusIdx = index('idx_housekeeping_date_status').on(
-  housekeepingTasks.taskDate,
-  housekeepingTasks.status,
-);
 export const housekeepingAssignedIdx = index('idx_housekeeping_assigned').on(
   housekeepingTasks.assignedTo,
   housekeepingTasks.status,
 );
-// Tasks by type for reporting
+export const housekeepingWorkloadIdx = index('idx_housekeeping_workload').on(
+  housekeepingTasks.assignedTo,
+  housekeepingTasks.taskDate,
+  housekeepingTasks.status,
+);
+export const housekeepingCurrentIdx = index('idx_housekeeping_current')
+  .on(housekeepingTasks.taskDate, housekeepingTasks.status, housekeepingTasks.roomId)
+  .where(sql`${housekeepingTasks.taskDate} >= CURRENT_DATE`);
 export const housekeepingTypeIdx = index('idx_housekeeping_type').on(housekeepingTasks.taskType, housekeepingTasks.status);
-// Today's pending tasks
-export const housekeepingTodayPendingIdx = index('idx_housekeeping_today_pending')
-  .on(housekeepingTasks.taskDate, housekeepingTasks.status)
-  .where(sql`${housekeepingTasks.status} IN ('pending', 'in_progress')`);
 
 export const maintenanceRequests = pgTable('maintenance_requests', {
   id: serial('id').primaryKey(),
@@ -94,7 +100,7 @@ export const maintenanceRequests = pgTable('maintenance_requests', {
   priority: maintenancePriorityEnum('priority').default('normal'),
   description: text('description').notNull(),
   
-  status: varchar('status', { length: 20 }).notNull().default('open'),
+  status: maintenanceStatusEnum('status').notNull().default('open'),
   
   assignedTo: integer('assigned_to').references(() => users.id),
   scheduledDate: date('scheduled_date'),
@@ -116,11 +122,10 @@ export const maintenanceAssignedIdx = index('idx_maintenance_assigned').on(
   maintenanceRequests.assignedTo,
   maintenanceRequests.status,
 );
-export const maintenanceCategoryIdx = index('idx_maintenance_category').on(maintenanceRequests.category);
-export const maintenancePriorityIdx = index('idx_maintenance_priority').on(maintenanceRequests.priority);
-// Chronological ordering for request history
-export const maintenanceCreatedIdx = index('idx_maintenance_created').on(maintenanceRequests.createdAt);
-// Open urgent requests
+
+export const maintenanceCurrentIdx = index('idx_maintenance_current')
+  .on(maintenanceRequests.scheduledDate, maintenanceRequests.status, maintenanceRequests.roomId)
+  .where(sql`${maintenanceRequests.scheduledDate} >= CURRENT_DATE`);
 export const maintenanceOpenUrgentIdx = index('idx_maintenance_open_urgent')
   .on(maintenanceRequests.priority, maintenanceRequests.status)
   .where(sql`${maintenanceRequests.status} = 'open' AND ${maintenanceRequests.priority} = 'urgent'`);

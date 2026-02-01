@@ -97,13 +97,10 @@ export const invoices = pgTable('invoices', {
 export const invoicesNumberIdx = uniqueIndex('idx_invoices_number').on(invoices.invoiceNumber);
 export const invoicesGuestIdx = index('idx_invoices_guest').on(invoices.guestId);
 export const invoicesReservationIdx = index('idx_invoices_reservation').on(invoices.reservationId);
-export const invoicesStatusIdx = index('idx_invoices_status').on(invoices.status);
 export const invoicesIssueDateIdx = index('idx_invoices_issue_date').on(invoices.issueDate);
-// Unpaid invoices
 export const invoicesUnpaidIdx = index('idx_invoices_unpaid')
   .on(invoices.status, invoices.dueDate)
   .where(sql`${invoices.status} IN ('issued', 'partially_paid', 'overdue')`);
-// Overdue invoices
 export const invoicesOverdueIdx = index('idx_invoices_overdue')
   .on(invoices.dueDate)
   .where(sql`${invoices.status} = 'overdue'`);
@@ -132,7 +129,6 @@ export const invoiceItems = pgTable('invoice_items', {
 });
 
 export const invoiceItemsInvoiceIdx = index('idx_invoice_items_invoice').on(invoiceItems.invoiceId);
-export const invoiceItemsTypeIdx = index('idx_invoice_items_type').on(invoiceItems.itemType);
 export const invoiceItemsDateIdx = index('idx_invoice_items_date').on(invoiceItems.dateOfService);
 
 export const payments = pgTable('payments', {

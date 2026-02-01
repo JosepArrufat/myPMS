@@ -80,11 +80,6 @@ export const rooms = pgTable('rooms', {
 });
 
 export const roomsNumberIdx = uniqueIndex('idx_rooms_number').on(rooms.roomNumber);
-export const roomsTypeIdx = index('idx_rooms_type').on(rooms.roomTypeId);
-export const roomsStatusIdx = index('idx_rooms_status').on(rooms.status);
-export const roomsFloorIdx = index('idx_rooms_floor').on(rooms.floor);
-export const roomsTypeStatusIdx = index('idx_rooms_type_status').on(rooms.roomTypeId, rooms.status);
-export const roomsMaintenanceIdx = index('idx_rooms_maintenance').on(rooms.nextMaintenanceDue);
 
 export type RoomType = typeof roomTypes.$inferSelect;
 export type NewRoomType = typeof roomTypes.$inferInsert;
