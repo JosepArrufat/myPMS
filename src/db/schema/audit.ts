@@ -31,11 +31,11 @@ export const auditLog = pgTable('audit_log', {
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   timestamp: timestamp('timestamp').defaultNow(),
-});
-
-export const auditLogTableRecordIdx = index('idx_audit_log_table_record').on(auditLog.tableName, auditLog.recordId);
-export const auditLogUserIdx = index('idx_audit_log_user').on(auditLog.userId);
-export const auditLogTimestampIdx = index('idx_audit_log_timestamp').on(auditLog.timestamp);
+}, (table) => ({
+  auditLogTableRecordIdx: index('idx_audit_log_table_record').on(table.tableName, table.recordId),
+  auditLogUserIdx: index('idx_audit_log_user').on(table.userId),
+  auditLogTimestampIdx: index('idx_audit_log_timestamp').on(table.timestamp),
+}));
 
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;

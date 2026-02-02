@@ -50,12 +50,12 @@ export const roomTypes = pgTable('room_types', {
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-});
-
-export const roomTypesNameIdx = uniqueIndex('idx_room_types_name').on(roomTypes.name);
-export const roomTypesCodeIdx = uniqueIndex('idx_room_types_code').on(roomTypes.code);
-export const roomTypesActiveIdx = index('idx_room_types_active').on(roomTypes.isActive, roomTypes.sortOrder);
-export const roomTypesSortIdx = index('idx_room_types_sort').on(roomTypes.sortOrder);
+}, (table) => ({
+  nameIdx: uniqueIndex('idx_room_types_name').on(table.name),
+  codeIdx: uniqueIndex('idx_room_types_code').on(table.code),
+  activeIdx: index('idx_room_types_active').on(table.isActive, table.sortOrder),
+  sortIdx: index('idx_room_types_sort').on(table.sortOrder),
+}));
 
 export const rooms = pgTable('rooms', {
   id: serial('id').primaryKey(),
@@ -77,9 +77,9 @@ export const rooms = pgTable('rooms', {
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-});
-
-export const roomsNumberIdx = uniqueIndex('idx_rooms_number').on(rooms.roomNumber);
+}, (table) => ({
+  roomsNumberIdx: uniqueIndex('idx_rooms_number').on(table.roomNumber),
+}));
 
 export type RoomType = typeof roomTypes.$inferSelect;
 export type NewRoomType = typeof roomTypes.$inferInsert;

@@ -92,18 +92,14 @@ export const invoices = pgTable('invoices', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
-});
-
-export const invoicesNumberIdx = uniqueIndex('idx_invoices_number').on(invoices.invoiceNumber);
-export const invoicesGuestIdx = index('idx_invoices_guest').on(invoices.guestId);
-export const invoicesReservationIdx = index('idx_invoices_reservation').on(invoices.reservationId);
-export const invoicesIssueDateIdx = index('idx_invoices_issue_date').on(invoices.issueDate);
-export const invoicesUnpaidIdx = index('idx_invoices_unpaid')
-  .on(invoices.status, invoices.dueDate)
-  .where(sql`${invoices.status} IN ('issued', 'partially_paid', 'overdue')`);
-export const invoicesOverdueIdx = index('idx_invoices_overdue')
-  .on(invoices.dueDate)
-  .where(sql`${invoices.status} = 'overdue'`);
+}, (table) => ({
+  invoicesNumberIdx: uniqueIndex('idx_invoices_number').on(table.invoiceNumber),
+  invoicesGuestIdx: index('idx_invoices_guest').on(table.guestId),
+  invoicesReservationIdx: index('idx_invoices_reservation').on(table.reservationId),
+  invoicesIssueDateIdx: index('idx_invoices_issue_date').on(table.issueDate),
+  invoicesUnpaidIdx: index('idx_invoices_unpaid').on(table.status, table.dueDate).where(sql`${table.status} IN ('issued', 'partially_paid', 'overdue')`),
+  invoicesOverdueIdx: index('idx_invoices_overdue').on(table.dueDate).where(sql`${table.status} = 'overdue'`),
+}));
 
 export const invoiceItems = pgTable('invoice_items', {
   id: serial('id').primaryKey(),
@@ -126,10 +122,10 @@ export const invoiceItems = pgTable('invoice_items', {
   
   createdAt: timestamp('created_at').defaultNow(),
   createdBy: integer('created_by').references(() => users.id),
-});
-
-export const invoiceItemsInvoiceIdx = index('idx_invoice_items_invoice').on(invoiceItems.invoiceId);
-export const invoiceItemsDateIdx = index('idx_invoice_items_date').on(invoiceItems.dateOfService);
+}, (table) => ({
+  invoiceItemsInvoiceIdx: index('idx_invoice_items_invoice').on(table.invoiceId),
+  invoiceItemsDateIdx: index('idx_invoice_items_date').on(table.dateOfService),
+}));
 
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
@@ -153,12 +149,12 @@ export const payments = pgTable('payments', {
   
   createdAt: timestamp('created_at').defaultNow(),
   createdBy: integer('created_by').references(() => users.id),
-});
-
-export const paymentsInvoiceIdx = index('idx_payments_invoice').on(payments.invoiceId);
-export const paymentsDateIdx = index('idx_payments_date').on(payments.paymentDate);
-export const paymentsMethodIdx = index('idx_payments_method').on(payments.paymentMethod);
-export const paymentsRefundIdx = index('idx_payments_refund').on(payments.isRefund).where(sql`${payments.isRefund} = true`);
+}, (table) => ({
+  paymentsInvoiceIdx: index('idx_payments_invoice').on(table.invoiceId),
+  paymentsDateIdx: index('idx_payments_date').on(table.paymentDate),
+  paymentsMethodIdx: index('idx_payments_method').on(table.paymentMethod),
+  paymentsRefundIdx: index('idx_payments_refund').on(table.isRefund).where(sql`${table.isRefund} = true`),
+}));
 
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;

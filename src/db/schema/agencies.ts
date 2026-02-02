@@ -38,10 +38,10 @@ export const agencies = pgTable('agencies', {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-});
-
-export const agenciesCodeIdx = uniqueIndex('idx_agencies_code').on(agencies.code);
-export const agenciesNameIdx = index('idx_agencies_name').on(agencies.name);
+}, (table) => ({
+  agenciesCodeIdx: uniqueIndex('idx_agencies_code').on(table.code),
+  agenciesNameIdx: index('idx_agencies_name').on(table.name),
+}));
 
 export type Agency = typeof agencies.$inferSelect;
 export type NewAgency = typeof agencies.$inferInsert;

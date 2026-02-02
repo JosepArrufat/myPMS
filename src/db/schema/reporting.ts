@@ -41,9 +41,9 @@ export const dailyRevenue = pgTable('daily_revenue', {
   revenuePerAvailableRoom: decimal('revenue_per_available_room', { precision: 10, scale: 2 }).default('0'),
   
   calculatedAt: timestamp('calculated_at').defaultNow(),
-});
-
-export const dailyRevenueDateIdx = index('idx_daily_revenue_date').on(dailyRevenue.date);
+}, (table) => ({
+  dailyRevenueDateIdx: index('idx_daily_revenue_date').on(table.date),
+}));
 
 export const monthlyRevenue = pgTable('monthly_revenue', {
   month: date('month').primaryKey(),
@@ -77,9 +77,9 @@ export const monthlyRevenue = pgTable('monthly_revenue', {
   avgRevpar: decimal('avg_revpar', { precision: 10, scale: 2 }),
   
   calculatedAt: timestamp('calculated_at').defaultNow(),
-});
-
-export const monthlyRevenueMonthIdx = index('idx_monthly_revenue_month').on(monthlyRevenue.month);
+}, (table) => ({
+  monthlyRevenueMonthIdx: index('idx_monthly_revenue_month').on(table.month),
+}));
 
 export const yearlyRevenue = pgTable('yearly_revenue', {
   year: integer('year').primaryKey(),
@@ -113,9 +113,9 @@ export const yearlyRevenue = pgTable('yearly_revenue', {
   avgRevpar: decimal('avg_revpar', { precision: 10, scale: 2 }),
   
   calculatedAt: timestamp('calculated_at').defaultNow(),
-});
-
-export const yearlyRevenueYearIdx = index('idx_yearly_revenue_year').on(yearlyRevenue.year);
+}, (table) => ({
+  yearlyRevenueYearIdx: index('idx_yearly_revenue_year').on(table.year),
+}));
 
 export const dailyRoomTypeRevenue = pgTable('daily_room_type_revenue', {
   date: date('date').notNull(),
@@ -126,10 +126,10 @@ export const dailyRoomTypeRevenue = pgTable('daily_room_type_revenue', {
   averageRate: decimal('average_rate', { precision: 10, scale: 2 }).default('0'),
   
   calculatedAt: timestamp('calculated_at').defaultNow(),
-});
-
-export const dailyRoomTypeRevenuePk = primaryKey({ columns: [dailyRoomTypeRevenue.date, dailyRoomTypeRevenue.roomTypeId] });
-export const dailyRoomTypeRevenueDateIdx = index('idx_daily_room_type_date').on(dailyRoomTypeRevenue.date);
+}, (table) => ({
+  pk: primaryKey({ columns: [table.date, table.roomTypeId] }),
+  dailyRoomTypeRevenueDateIdx: index('idx_daily_room_type_date').on(table.date),
+}));
 
 export const dailyRateRevenue = pgTable('daily_rate_revenue', {
   date: date('date').notNull(),
@@ -140,10 +140,10 @@ export const dailyRateRevenue = pgTable('daily_rate_revenue', {
   averageRate: decimal('average_rate', { precision: 10, scale: 2 }).default('0'),
   
   calculatedAt: timestamp('calculated_at').defaultNow(),
-});
-
-export const dailyRateRevenuePk = primaryKey({ columns: [dailyRateRevenue.date, dailyRateRevenue.ratePlanId] });
-export const dailyRateRevenueDateIdx = index('idx_daily_rate_date').on(dailyRateRevenue.date);
+}, (table) => ({
+  pk: primaryKey({ columns: [table.date, table.ratePlanId] }),
+  dailyRateRevenueDateIdx: index('idx_daily_rate_date').on(table.date),
+}));
 
 export type DailyRevenue = typeof dailyRevenue.$inferSelect;
 export type MonthlyRevenue = typeof monthlyRevenue.$inferSelect;

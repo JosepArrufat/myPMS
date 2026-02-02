@@ -76,25 +76,15 @@ export const reservations = pgTable('reservations', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
-});
-
-export const reservationsNumberIdx = uniqueIndex('idx_reservations_number').on(reservations.reservationNumber);
-export const reservationsGuestIdx = index('idx_reservations_guest').on(reservations.guestId);
-export const reservationsDatesIdx = index('idx_reservations_dates').on(reservations.checkInDate, reservations.checkOutDate);
-export const reservationsCheckInStatusIdx = index('idx_reservations_checkin_status').on(
-  reservations.checkInDate,
-  reservations.status,
-);
-export const reservationsCheckOutStatusIdx = index('idx_reservations_checkout_status').on(
-  reservations.checkOutDate,
-  reservations.status,
-);
-export const reservationsAgencyIdx = index('idx_reservations_agency')
-  .on(reservations.agencyId)
-  .where(sql`${reservations.agencyId} IS NOT NULL`);
-export const reservationsActiveIdx = index('idx_reservations_active')
-  .on(reservations.checkInDate, reservations.checkOutDate)
-  .where(sql`${reservations.status} IN ('confirmed', 'checked_in')`);
+}, (table) => ({
+  reservationsNumberIdx: uniqueIndex('idx_reservations_number').on(table.reservationNumber),
+  reservationsGuestIdx: index('idx_reservations_guest').on(table.guestId),
+  reservationsDatesIdx: index('idx_reservations_dates').on(table.checkInDate, table.checkOutDate),
+  reservationsCheckInStatusIdx: index('idx_reservations_checkin_status').on(table.checkInDate, table.status),
+  reservationsCheckOutStatusIdx: index('idx_reservations_checkout_status').on(table.checkOutDate, table.status),
+  reservationsAgencyIdx: index('idx_reservations_agency').on(table.agencyId).where(sql`${table.agencyId} IS NOT NULL`),
+  reservationsActiveIdx: index('idx_reservations_active').on(table.checkInDate, table.checkOutDate).where(sql`${table.status} IN ('confirmed', 'checked_in')`),
+}));
 
 export const reservationRooms = pgTable('reservation_rooms', {
   id: serial('id').primaryKey(),
@@ -113,22 +103,13 @@ export const reservationRooms = pgTable('reservation_rooms', {
   
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
-});
-
-export const reservationRoomsReservationIdx = index('idx_reservation_rooms_reservation').on(reservationRooms.reservationId);
-export const reservationRoomsDatesIdx = index('idx_reservation_rooms_dates').on(
-  reservationRooms.checkInDate,
-  reservationRooms.checkOutDate,
-);
-export const reservationRoomsTypeIdx = index('idx_reservation_rooms_type').on(reservationRooms.roomTypeId);
-export const reservationRoomsAvailabilityIdx = index('idx_reservation_rooms_availability')
-  .on(reservationRooms.roomId, reservationRooms.checkInDate, reservationRooms.checkOutDate)
-  .where(sql`${reservationRooms.roomId} IS NOT NULL`);
-export const reservationRoomsTypeAvailabilityIdx = index('idx_reservation_rooms_type_availability').on(
-  reservationRooms.roomTypeId,
-  reservationRooms.checkInDate,
-  reservationRooms.checkOutDate,
-);
+}, (table) => ({
+  reservationRoomsReservationIdx: index('idx_reservation_rooms_reservation').on(table.reservationId),
+  reservationRoomsDatesIdx: index('idx_reservation_rooms_dates').on(table.checkInDate, table.checkOutDate),
+  reservationRoomsTypeIdx: index('idx_reservation_rooms_type').on(table.roomTypeId),
+  reservationRoomsAvailabilityIdx: index('idx_reservation_rooms_availability').on(table.roomId, table.checkInDate, table.checkOutDate).where(sql`${table.roomId} IS NOT NULL`),
+  reservationRoomsTypeAvailabilityIdx: index('idx_reservation_rooms_type_availability').on(table.roomTypeId, table.checkInDate, table.checkOutDate),
+}));
 
 export const roomAssignments = pgTable('room_assignments', {
   id: serial('id').primaryKey(),
@@ -139,18 +120,12 @@ export const roomAssignments = pgTable('room_assignments', {
   assignedAt: timestamp('assigned_at').defaultNow(),
   assignedBy: integer('assigned_by').references(() => users.id),
   notes: text('notes'),
-});
-
-export const roomAssignmentsRoomDateUnique = uniqueIndex('idx_room_assignments_room_date_unique').on(
-  roomAssignments.roomId,
-  roomAssignments.date,
-);
-export const roomAssignmentsReservationIdx = index('idx_room_assignments_reservation').on(roomAssignments.reservationId);
-export const roomAssignmentsRoomDateIdx = index('idx_room_assignments_room_date').on(
-  roomAssignments.roomId,
-  roomAssignments.date,
-);
-export const roomAssignmentsDateIdx = index('idx_room_assignments_date').on(roomAssignments.date);
+}, (table) => ({
+  roomAssignmentsRoomDateUnique: uniqueIndex('idx_room_assignments_room_date_unique').on(table.roomId, table.date),
+  roomAssignmentsReservationIdx: index('idx_room_assignments_reservation').on(table.reservationId),
+  roomAssignmentsRoomDateIdx: index('idx_room_assignments_room_date').on(table.roomId, table.date),
+  roomAssignmentsDateIdx: index('idx_room_assignments_date').on(table.date),
+}));
 
 export const roomBlocks = pgTable('room_blocks', {
   id: serial('id').primaryKey(),
@@ -170,14 +145,12 @@ export const roomBlocks = pgTable('room_blocks', {
   createdBy: integer('created_by').references(() => users.id),
   releasedAt: timestamp('released_at'),
   releasedBy: integer('released_by').references(() => users.id),
-});
-
-export const roomBlocksRoomIdx = index('idx_room_blocks_room').on(roomBlocks.roomId, roomBlocks.startDate, roomBlocks.endDate);
-export const roomBlocksTypeIdx = index('idx_room_blocks_type').on(roomBlocks.roomTypeId, roomBlocks.startDate, roomBlocks.endDate);
-export const roomBlocksDatesIdx = index('idx_room_blocks_dates').on(roomBlocks.startDate, roomBlocks.endDate);
-export const roomBlocksActiveIdx = index('idx_room_blocks_active')
-  .on(roomBlocks.startDate, roomBlocks.endDate)
-  .where(sql`${roomBlocks.releasedAt} IS NULL`);
+}, (table) => ({
+  roomBlocksRoomIdx: index('idx_room_blocks_room').on(table.roomId, table.startDate, table.endDate),
+  roomBlocksTypeIdx: index('idx_room_blocks_type').on(table.roomTypeId, table.startDate, table.endDate),
+  roomBlocksDatesIdx: index('idx_room_blocks_dates').on(table.startDate, table.endDate),
+  roomBlocksActiveIdx: index('idx_room_blocks_active').on(table.startDate, table.endDate).where(sql`${table.releasedAt} IS NULL`),
+}));
 
 export type Reservation = typeof reservations.$inferSelect;
 export type NewReservation = typeof reservations.$inferInsert;

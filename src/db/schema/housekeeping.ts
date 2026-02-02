@@ -72,25 +72,13 @@ export const housekeepingTasks = pgTable('housekeeping_tasks', {
   
   createdAt: timestamp('created_at').defaultNow(),
   createdBy: integer('created_by').references(() => users.id),
-});
-
-export const housekeepingRoomDateIdx = index('idx_housekeeping_room_date').on(
-  housekeepingTasks.roomId,
-  housekeepingTasks.taskDate,
-);
-export const housekeepingAssignedIdx = index('idx_housekeeping_assigned').on(
-  housekeepingTasks.assignedTo,
-  housekeepingTasks.status,
-);
-export const housekeepingWorkloadIdx = index('idx_housekeeping_workload').on(
-  housekeepingTasks.assignedTo,
-  housekeepingTasks.taskDate,
-  housekeepingTasks.status,
-);
-export const housekeepingCurrentIdx = index('idx_housekeeping_current')
-  .on(housekeepingTasks.taskDate, housekeepingTasks.status, housekeepingTasks.roomId)
-  .where(sql`${housekeepingTasks.taskDate} >= CURRENT_DATE`);
-export const housekeepingTypeIdx = index('idx_housekeeping_type').on(housekeepingTasks.taskType, housekeepingTasks.status);
+}, (table) => ({
+  housekeepingRoomDateIdx: index('idx_housekeeping_room_date').on(table.roomId, table.taskDate),
+  housekeepingAssignedIdx: index('idx_housekeeping_assigned').on(table.assignedTo, table.status),
+  housekeepingWorkloadIdx: index('idx_housekeeping_workload').on(table.assignedTo, table.taskDate, table.status),
+  housekeepingCurrentIdx: index('idx_housekeeping_current').on(table.taskDate, table.status, table.roomId).where(sql`${table.taskDate} >= CURRENT_DATE`),
+  housekeepingTypeIdx: index('idx_housekeeping_type').on(table.taskType, table.status),
+}));
 
 export const maintenanceRequests = pgTable('maintenance_requests', {
   id: serial('id').primaryKey(),
@@ -114,21 +102,13 @@ export const maintenanceRequests = pgTable('maintenance_requests', {
   createdAt: timestamp('created_at').defaultNow(),
   createdBy: integer('created_by').references(() => users.id),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-});
-
-export const maintenanceRoomIdx = index('idx_maintenance_room').on(maintenanceRequests.roomId);
-export const maintenanceStatusIdx = index('idx_maintenance_status').on(maintenanceRequests.status);
-export const maintenanceAssignedIdx = index('idx_maintenance_assigned').on(
-  maintenanceRequests.assignedTo,
-  maintenanceRequests.status,
-);
-
-export const maintenanceCurrentIdx = index('idx_maintenance_current')
-  .on(maintenanceRequests.scheduledDate, maintenanceRequests.status, maintenanceRequests.roomId)
-  .where(sql`${maintenanceRequests.scheduledDate} >= CURRENT_DATE`);
-export const maintenanceOpenUrgentIdx = index('idx_maintenance_open_urgent')
-  .on(maintenanceRequests.priority, maintenanceRequests.status)
-  .where(sql`${maintenanceRequests.status} = 'open' AND ${maintenanceRequests.priority} = 'urgent'`);
+}, (table) => ({
+  maintenanceRoomIdx: index('idx_maintenance_room').on(table.roomId),
+  maintenanceStatusIdx: index('idx_maintenance_status').on(table.status),
+  maintenanceAssignedIdx: index('idx_maintenance_assigned').on(table.assignedTo, table.status),
+  maintenanceCurrentIdx: index('idx_maintenance_current').on(table.scheduledDate, table.status, table.roomId).where(sql`${table.scheduledDate} >= CURRENT_DATE`),
+  maintenanceOpenUrgentIdx: index('idx_maintenance_open_urgent').on(table.priority, table.status).where(sql`${table.status} = 'open' AND ${table.priority} = 'urgent'`),
+}));
 
 export type HousekeepingTask = typeof housekeepingTasks.$inferSelect;
 export type NewHousekeepingTask = typeof housekeepingTasks.$inferInsert;

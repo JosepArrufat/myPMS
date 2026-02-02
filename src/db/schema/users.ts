@@ -38,28 +38,22 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: serial('created_by').references((): AnyPgColumn => users.id),
 });
-
-export const usersEmailIdx = uniqueIndex('idx_users_email').on(users.email);
-
 export const permissions = pgTable('permissions', {
   id: serial('id').primaryKey(),
   resource: varchar('resource', { length: 50 }).notNull(),
   action: varchar('action', { length: 50 }).notNull(),
   description: text('description'),
-});
-
-export const permissionsResourceActionIdx = uniqueIndex('idx_permissions_resource_action').on(
-  permissions.resource,
-  permissions.action,
-);
+}, (table) => ({
+  resourceActionIdx: uniqueIndex('idx_permissions_resource_action').on(table.resource, table.action),
+}));
 
 export const rolePermissions = pgTable('role_permissions', {
   role: userRoleEnum('role').notNull(),
   permissionId: serial('permission_id').notNull().references(() => permissions.id),
-});
-
-export const rolePermissionsPk = primaryKey({ columns: [rolePermissions.role, rolePermissions.permissionId] });
-export const rolePermissionsRoleIdx = index('idx_role_permissions_role').on(rolePermissions.role);
+}, (table) => ({
+  pk: primaryKey({ columns: [table.role, table.permissionId] }),
+  roleIdx: index('idx_role_permissions_role').on(table.role),
+}));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

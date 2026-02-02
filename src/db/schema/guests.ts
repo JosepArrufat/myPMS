@@ -67,14 +67,12 @@ export const guests = pgTable('guests', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: serial('created_by').references(() => users.id),
-});
-
-export const guestsEmailIdx = index('idx_guests_email')
-  .on(guests.email)
-  .where(sql`${guests.email} IS NOT NULL`);
-export const guestsNameIdx = index('idx_guests_name').on(guests.lastName, guests.firstName);
-export const guestsVipIdx = index('idx_guests_vip').on(guests.vipStatus).where(sql`${guests.vipStatus} = true`);
-export const guestsLoyaltyIdx = index('idx_guests_loyalty').on(guests.loyaltyNumber);
+}, (table) => ({
+  emailIdx: index('idx_guests_email').on(table.email).where(sql`${table.email} IS NOT NULL`),
+  nameIdx: index('idx_guests_name').on(table.lastName, table.firstName),
+  vipIdx: index('idx_guests_vip').on(table.vipStatus).where(sql`${table.vipStatus} = true`),
+  loyaltyIdx: index('idx_guests_loyalty').on(table.loyaltyNumber),
+}));
 
 export type Guest = typeof guests.$inferSelect;
 export type NewGuest = typeof guests.$inferInsert;

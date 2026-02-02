@@ -45,9 +45,9 @@ export const ratePlans = pgTable('rate_plans', {
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-});
-
-export const ratePlansCodeIdx = uniqueIndex('idx_rate_plans_code').on(ratePlans.code);
+}, (table) => ({
+  ratePlansCodeIdx: uniqueIndex('idx_rate_plans_code').on(table.code),
+}));
 
 export const roomTypeRates = pgTable('room_type_rates', {
   id: serial('id').primaryKey(),
@@ -67,14 +67,9 @@ export const roomTypeRates = pgTable('room_type_rates', {
   appliesSunday: boolean('applies_sunday').default(true),
   
   createdAt: timestamp('created_at').defaultNow(),
-});
-
-export const roomTypeRatesLookupIdx = index('idx_room_type_rates_lookup').on(
-  roomTypeRates.roomTypeId,
-  roomTypeRates.ratePlanId,
-  roomTypeRates.startDate,
-  roomTypeRates.endDate,
-);
+}, (table) => ({
+  roomTypeRatesLookupIdx: index('idx_room_type_rates_lookup').on(table.roomTypeId, table.ratePlanId, table.startDate, table.endDate),
+}));
 
 export const roomTypeRateAdjustments = pgTable('room_type_rate_adjustments', {
   id: serial('id').primaryKey(),
@@ -85,13 +80,9 @@ export const roomTypeRateAdjustments = pgTable('room_type_rate_adjustments', {
   adjustmentValue: decimal('adjustment_value', { precision: 10, scale: 2 }).notNull(),
   allowOverride: boolean('allow_override').default(true),
   createdAt: timestamp('created_at').defaultNow(),
-});
-
-export const roomTypeRateAdjustmentsIdx = index('idx_room_type_rate_adjustments').on(
-  roomTypeRateAdjustments.baseRoomTypeId,
-  roomTypeRateAdjustments.derivedRoomTypeId,
-  roomTypeRateAdjustments.ratePlanId,
-);
+}, (table) => ({
+  roomTypeRateAdjustmentsIdx: index('idx_room_type_rate_adjustments').on(table.baseRoomTypeId, table.derivedRoomTypeId, table.ratePlanId),
+}));
 
 export type RatePlan = typeof ratePlans.$inferSelect;
 export type NewRatePlan = typeof ratePlans.$inferInsert;
