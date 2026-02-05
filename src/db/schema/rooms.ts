@@ -29,6 +29,7 @@ export const roomTypes = pgTable('room_types', {
   name: varchar('name', { length: 100 }).notNull().unique(),
   code: varchar('code', { length: 20 }).notNull().unique(),
   description: text('description'),
+  totalRooms: integer('total_rooms').notNull().default(0),
   basePrice: decimal('base_price', { precision: 10, scale: 2 }).notNull(),
   maxOccupancy: integer('max_occupancy').notNull().default(2),
   maxAdults: integer('max_adults').notNull().default(2),

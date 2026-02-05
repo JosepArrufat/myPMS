@@ -1,0 +1,2 @@
+DROP INDEX "idx_promotions_active_valid";--> statement-breakpoint
+CREATE INDEX "idx_promotions_active_valid" ON "promotions" USING btree ("is_active","valid_from","valid_to") WHERE "promotions"."is_active" = true;

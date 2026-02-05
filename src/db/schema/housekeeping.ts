@@ -76,7 +76,7 @@ export const housekeepingTasks = pgTable('housekeeping_tasks', {
   housekeepingRoomDateIdx: index('idx_housekeeping_room_date').on(table.roomId, table.taskDate),
   housekeepingAssignedIdx: index('idx_housekeeping_assigned').on(table.assignedTo, table.status),
   housekeepingWorkloadIdx: index('idx_housekeeping_workload').on(table.assignedTo, table.taskDate, table.status),
-  housekeepingCurrentIdx: index('idx_housekeeping_current').on(table.taskDate, table.status, table.roomId).where(sql`${table.taskDate} >= CURRENT_DATE`),
+  housekeepingCurrentIdx: index('idx_housekeeping_current').on(table.taskDate, table.status, table.roomId),
   housekeepingTypeIdx: index('idx_housekeeping_type').on(table.taskType, table.status),
 }));
 
@@ -106,7 +106,7 @@ export const maintenanceRequests = pgTable('maintenance_requests', {
   maintenanceRoomIdx: index('idx_maintenance_room').on(table.roomId),
   maintenanceStatusIdx: index('idx_maintenance_status').on(table.status),
   maintenanceAssignedIdx: index('idx_maintenance_assigned').on(table.assignedTo, table.status),
-  maintenanceCurrentIdx: index('idx_maintenance_current').on(table.scheduledDate, table.status, table.roomId).where(sql`${table.scheduledDate} >= CURRENT_DATE`),
+  maintenanceCurrentIdx: index('idx_maintenance_current').on(table.scheduledDate, table.status, table.roomId),
   maintenanceOpenUrgentIdx: index('idx_maintenance_open_urgent').on(table.priority, table.status).where(sql`${table.status} = 'open' AND ${table.priority} = 'urgent'`),
 }));
 

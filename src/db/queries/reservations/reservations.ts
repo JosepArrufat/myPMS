@@ -10,7 +10,13 @@ import {
 import { db } from '../../index.js';
 import {
   reservations,
+  reservationRooms,
+  reservationDailyRates,
+  type NewReservation,
 } from '../../schema/reservations.js';
+import { reserveRoomInventory } from '../catalog/rooms.js';
+import { roomTypeRates } from '../../schema/rates.js';
+import { roomTypes } from '../../schema/rooms.js';
 
 export const findReservationByNumber = async (reservationNumber: string) =>
   db
@@ -72,3 +78,106 @@ export const listReservationsForAgency = async (
         )
       : eq(reservations.agencyId, agencyId))
     .orderBy(asc(reservations.checkInDate));
+
+interface CreateReservationInput {
+  reservation: Omit<NewReservation, 'id' | 'createdAt' | 'updatedAt'>;
+  rooms: Array<{
+    roomTypeId: number;
+    checkInDate: string;
+    checkOutDate: string;
+    ratePlanId?: number;
+    dailyRates?: Array<{ date: string; rate: string; ratePlanId?: number }>;
+  }>;
+}
+
+const computeNightlyRates = async (
+  tx: any, 
+  roomTypeId: number, 
+  ratePlanId: number | undefined, 
+  startDate: string, 
+  endDate: string
+) => {
+  const out: Array<{ date: string; rate: string; ratePlanId?: number }> = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  let cur = new Date(start);
+  while (cur < end) {
+    const dateStr = cur.toISOString().slice(0, 10);
+    let price: string | null = null;
+
+    if (ratePlanId) {
+      const [r] = await tx
+        .select({ price: roomTypeRates.price })
+        .from(roomTypeRates)
+        .where(and(
+          eq(roomTypeRates.roomTypeId, roomTypeId),
+          eq(roomTypeRates.ratePlanId, ratePlanId),
+          lte(roomTypeRates.startDate, dateStr),
+          gte(roomTypeRates.endDate, dateStr),
+        ))
+        .limit(1);
+      if (r && r.price != null) price = String(r.price);
+    }
+
+    if (!price) {
+      const [rt] = await tx
+        .select({ basePrice: roomTypes.basePrice })
+        .from(roomTypes)
+        .where(eq(roomTypes.id, roomTypeId))
+        .limit(1);
+      price = rt ? String(rt.basePrice) : '0';
+    }
+
+    out.push({ date: dateStr, rate: price, ratePlanId: ratePlanId ?? undefined });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+};
+
+export const createReservation = async (input: CreateReservationInput) => {
+  return db.transaction(async (tx) => {
+    const [newReservation] = await tx
+      .insert(reservations)
+      .values(input.reservation)
+      .returning();
+
+    for (const room of input.rooms) {
+      await reserveRoomInventory(room.roomTypeId, room.checkInDate, room.checkOutDate, 1);
+
+      const [reservationRoom] = await tx
+        .insert(reservationRooms)
+        .values({
+          reservationId: newReservation.id,
+          roomId: null,
+          roomTypeId: room.roomTypeId,
+          checkInDate: room.checkInDate,
+          checkOutDate: room.checkOutDate,
+          ratePlanId: room.ratePlanId,
+          assignedAt: null,
+          assignedBy: null,
+          notes: null,
+        })
+        .returning();
+
+      const daily = room.dailyRates && room.dailyRates.length > 0
+        ? room.dailyRates
+        : await computeNightlyRates(
+          tx, 
+          room.roomTypeId, 
+          room.ratePlanId ?? newReservation.ratePlanId ?? undefined, room.checkInDate, 
+          room.checkOutDate
+        );
+
+      await tx.insert(reservationDailyRates).values(
+        daily.map((dr) => ({
+          reservationRoomId: reservationRoom.id,
+          date: dr.date,
+          rate: dr.rate,
+          ratePlanId: dr.ratePlanId,
+        }))
+      );
+    }
+
+    return newReservation;
+  });
+};

@@ -95,7 +95,6 @@ export const reservationRooms = pgTable('reservation_rooms', {
   checkInDate: date('check_in_date').notNull(),
   checkOutDate: date('check_out_date').notNull(),
   
-  rate: decimal('rate', { precision: 10, scale: 2 }).notNull(),
   ratePlanId: integer('rate_plan_id').references(() => ratePlans.id),
   
   assignedAt: timestamp('assigned_at'),
@@ -109,6 +108,19 @@ export const reservationRooms = pgTable('reservation_rooms', {
   reservationRoomsTypeIdx: index('idx_reservation_rooms_type').on(table.roomTypeId),
   reservationRoomsAvailabilityIdx: index('idx_reservation_rooms_availability').on(table.roomId, table.checkInDate, table.checkOutDate).where(sql`${table.roomId} IS NOT NULL`),
   reservationRoomsTypeAvailabilityIdx: index('idx_reservation_rooms_type_availability').on(table.roomTypeId, table.checkInDate, table.checkOutDate),
+}));
+
+export const reservationDailyRates = pgTable('reservation_daily_rates', {
+  id: serial('id').primaryKey(),
+  reservationRoomId: integer('reservation_room_id').notNull().references(() => reservationRooms.id, { onDelete: 'cascade' }),
+  date: date('date').notNull(),
+  rate: decimal('rate', { precision: 10, scale: 2 }).notNull(),
+  ratePlanId: integer('rate_plan_id').references(() => ratePlans.id),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  dailyRatesRoomDateUnique: uniqueIndex('idx_daily_rates_room_date_unique').on(table.reservationRoomId, table.date),
+  dailyRatesRoomIdx: index('idx_daily_rates_room').on(table.reservationRoomId),
+  dailyRatesDateIdx: index('idx_daily_rates_date').on(table.date),
 }));
 
 export const roomAssignments = pgTable('room_assignments', {
@@ -156,6 +168,8 @@ export type Reservation = typeof reservations.$inferSelect;
 export type NewReservation = typeof reservations.$inferInsert;
 export type ReservationRoom = typeof reservationRooms.$inferSelect;
 export type NewReservationRoom = typeof reservationRooms.$inferInsert;
+export type ReservationDailyRate = typeof reservationDailyRates.$inferSelect;
+export type NewReservationDailyRate = typeof reservationDailyRates.$inferInsert;
 export type RoomAssignment = typeof roomAssignments.$inferSelect;
 export type NewRoomAssignment = typeof roomAssignments.$inferInsert;
 export type RoomBlock = typeof roomBlocks.$inferSelect;

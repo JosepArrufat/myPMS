@@ -11,8 +11,9 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
-import { users } from './users';
+import { userRoleEnum, users } from './users';
 import { sql } from 'drizzle-orm';
+import { permission } from 'node:process';
 
 export const guestDocumentTypeEnum = pgEnum('guest_document_type', [
   'passport',
