@@ -7,16 +7,22 @@
     "start": "tsx src/app.ts",
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
-    "docker:up": "docker compose up -d",
+    "docker:up": "docker compose up -d db db-test",
+    "docker:up:db": "docker compose up -d db",
+    "docker:up:test": "docker compose up -d db-test",
     "docker:down": "docker compose down",
-    "db:reset": "docker compose down -v && docker-compose up -d db",
+    "docker:reset": "docker compose down -v && docker compose up -d db db-test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
+    "db:push:test": "drizzle-kit push --config drizzle.test.config.ts",
     "db:drop": "drizzle-kit drop",
     "db:seed": "node src/db/seed.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -40,7 +46,9 @@
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
+    "@vitest/ui": "^1.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
   }
 }

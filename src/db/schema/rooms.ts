@@ -70,10 +70,6 @@ export const rooms = pgTable('rooms', {
   connectingRoomId: integer('connecting_room_id').references((): AnyPgColumn => rooms.id),
   isAccessible: boolean('is_accessible').default(false),
   
-  lastDeepClean: date('last_deep_clean'),
-  lastMaintenance: date('last_maintenance'),
-  nextMaintenanceDue: date('next_maintenance_due'),
-  
   notes: text('notes'),
   
   createdAt: timestamp('created_at').defaultNow(),

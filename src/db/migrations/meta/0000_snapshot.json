@@ -1,5 +1,5 @@
 {
-  "id": "63b6af70-a71f-40ce-83d7-cf9bfcdb1e5b",
+  "id": "76eb1b5f-3376-45bd-8e18-8008d8f88e98",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -537,6 +537,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "total_rooms": {
+          "name": "total_rooms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "base_price": {
           "name": "base_price",
@@ -1358,15 +1365,16 @@
         },
         "code": {
           "name": "code",
-          "type": "varchar(20)",
+          "type": "varchar(8)",
           "primaryKey": false,
           "notNull": false
         },
         "type": {
           "name": "type",
-          "type": "varchar(50)",
+          "type": "agency_type",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "contact_person": {
           "name": "contact_person",
@@ -1394,6 +1402,12 @@
         },
         "city": {
           "name": "city",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_province": {
+          "name": "state_province",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
@@ -1428,25 +1442,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": 30
-        },
-        "api_key": {
-          "name": "api_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "channel_manager_id": {
-          "name": "channel_manager_id",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_travel_agency": {
-          "name": "is_travel_agency",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
         },
         "is_active": {
           "name": "is_active",
@@ -1517,6 +1512,135 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.reservation_daily_rates": {
+      "name": "reservation_daily_rates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reservation_room_id": {
+          "name": "reservation_room_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate": {
+          "name": "rate",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate_plan_id": {
+          "name": "rate_plan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_daily_rates_room_date_unique": {
+          "name": "idx_daily_rates_room_date_unique",
+          "columns": [
+            {
+              "expression": "reservation_room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_daily_rates_room": {
+          "name": "idx_daily_rates_room",
+          "columns": [
+            {
+              "expression": "reservation_room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_daily_rates_date": {
+          "name": "idx_daily_rates_date",
+          "columns": [
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reservation_daily_rates_reservation_room_id_reservation_rooms_id_fk": {
+          "name": "reservation_daily_rates_reservation_room_id_reservation_rooms_id_fk",
+          "tableFrom": "reservation_daily_rates",
+          "tableTo": "reservation_rooms",
+          "columnsFrom": [
+            "reservation_room_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "reservation_daily_rates_rate_plan_id_rate_plans_id_fk": {
+          "name": "reservation_daily_rates_rate_plan_id_rate_plans_id_fk",
+          "tableFrom": "reservation_daily_rates",
+          "tableTo": "rate_plans",
+          "columnsFrom": [
+            "rate_plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.reservation_rooms": {
       "name": "reservation_rooms",
       "schema": "",
@@ -1554,12 +1678,6 @@
         "check_out_date": {
           "name": "check_out_date",
           "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rate": {
-          "name": "rate",
-          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
         },
@@ -3483,7 +3601,6 @@
             }
           ],
           "isUnique": false,
-          "where": "\"housekeeping_tasks\".\"task_date\" >= CURRENT_DATE",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3752,7 +3869,6 @@
             }
           ],
           "isUnique": false,
-          "where": "\"maintenance_requests\".\"scheduled_date\" >= CURRENT_DATE",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4869,34 +4985,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "idx_promotions_active_valid": {
-          "name": "idx_promotions_active_valid",
-          "columns": [
-            {
-              "expression": "is_active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_from",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_to",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"promotions\".\"is_active\" = true AND \"promotions\".\"valid_from\" <= CURRENT_DATE AND \"promotions\".\"valid_to\" >= CURRENT_DATE",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {},
@@ -4957,6 +5045,14 @@
       "values": [
         "amount",
         "percent"
+      ]
+    },
+    "public.agency_type": {
+      "name": "agency_type",
+      "schema": "public",
+      "values": [
+        "agency",
+        "company"
       ]
     },
     "public.reservation_status": {

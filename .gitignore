@@ -1,0 +1,15 @@
+# Node
+node_modules/
+
+# Build
+dist/
+
+# Environment
+.env
+
+# Database workflow/docs (local only)
+DB_WORKFLOW.md
+QUICKREF.md
+
+# Drizzle migrations output (if you want to ignore generated SQL snapshots)
+src/db/migrations/

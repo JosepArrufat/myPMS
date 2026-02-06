@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770038271870,
-      "tag": "0000_jittery_human_torch",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770039127186,
-      "tag": "0001_panoramic_roulette",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770039357877,
-      "tag": "0002_complex_redwing",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770283266782,
-      "tag": "0003_unique_jane_foster",
+      "when": 1770347873788,
+      "tag": "0000_furry_madelyne_pryor",
       "breakpoints": true
     }
   ]

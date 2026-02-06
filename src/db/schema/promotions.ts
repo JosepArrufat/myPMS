@@ -39,7 +39,6 @@ export const promotions = pgTable('promotions', {
   promotionsCodeIdx: uniqueIndex('idx_promotions_code').on(table.code),
   promotionsActiveIdx: index('idx_promotions_active').on(table.isActive),
   promotionsDatesIdx: index('idx_promotions_dates').on(table.validFrom, table.validTo).where(sql`${table.isActive} = true`),
-  promotionsActiveValidIdx: index('idx_promotions_active_valid').on(table.isActive, table.validFrom, table.validTo).where(sql`${table.isActive} = true`),
 }));
 
 export type Promotion = typeof promotions.$inferSelect;
