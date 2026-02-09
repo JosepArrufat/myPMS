@@ -6,19 +6,21 @@ import {
   lte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   monthlyRevenue,
 } from '../../schema/reporting.js';
 
-export const getMonthlyRevenue = async (month: string) =>
+type DbConnection = typeof defaultDb;
+
+export const getMonthlyRevenue = async (month: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(monthlyRevenue)
     .where(eq(monthlyRevenue.month, month))
     .limit(1);
 
-export const listMonthlyRevenueRange = async (from: string, to: string) =>
+export const listMonthlyRevenueRange = async (from: string, to: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(monthlyRevenue)

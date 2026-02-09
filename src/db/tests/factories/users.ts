@@ -1,7 +1,6 @@
 import type { User, NewUser } from '../../schema/users';
 import { users } from '../../schema/users';
-
-type TestDb = ReturnType<typeof import('drizzle-orm/postgres-js').drizzle>;
+import type { TestDb } from '../setup';
 
 export const createTestUser = async (
   db: TestDb,

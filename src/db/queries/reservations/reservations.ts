@@ -7,7 +7,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   reservations,
   reservationRooms,
@@ -18,21 +18,23 @@ import { reserveRoomInventory } from '../catalog/rooms.js';
 import { roomTypeRates } from '../../schema/rates.js';
 import { roomTypes } from '../../schema/rooms.js';
 
-export const findReservationByNumber = async (reservationNumber: string) =>
+type DbConnection = typeof defaultDb;
+
+export const findReservationByNumber = async (reservationNumber: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(reservations)
     .where(eq(reservations.reservationNumber, reservationNumber))
     .limit(1);
 
-export const listGuestReservations = async (guestId: string) =>
+export const listGuestReservations = async (guestId: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(reservations)
     .where(eq(reservations.guestId, guestId))
     .orderBy(asc(reservations.checkInDate));
 
-export const listReservationsForStayWindow = async (from: string, to: string) =>
+export const listReservationsForStayWindow = async (from: string, to: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(reservations)
@@ -43,7 +45,7 @@ export const listReservationsForStayWindow = async (from: string, to: string) =>
     ))
     .orderBy(asc(reservations.checkInDate));
 
-export const listArrivalsForDate = async (targetDate: string) =>
+export const listArrivalsForDate = async (targetDate: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(reservations)
@@ -53,7 +55,7 @@ export const listArrivalsForDate = async (targetDate: string) =>
     ))
     .orderBy(asc(reservations.arrivalTime));
 
-export const listDeparturesForDate = async (targetDate: string) =>
+export const listDeparturesForDate = async (targetDate: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(reservations)
@@ -66,6 +68,7 @@ export const listDeparturesForDate = async (targetDate: string) =>
 export const listReservationsForAgency = async (
   agencyId: number,
   range?: { from: string; to: string },
+  db: DbConnection = defaultDb
 ) =>
   db
     .select()
@@ -134,7 +137,7 @@ const computeNightlyRates = async (
   return out;
 };
 
-export const createReservation = async (input: CreateReservationInput) => {
+export const createReservation = async (input: CreateReservationInput, db: DbConnection = defaultDb) => {
   return db.transaction(async (tx) => {
     const [newReservation] = await tx
       .insert(reservations)
@@ -142,7 +145,7 @@ export const createReservation = async (input: CreateReservationInput) => {
       .returning();
 
     for (const room of input.rooms) {
-      await reserveRoomInventory(room.roomTypeId, room.checkInDate, room.checkOutDate, 1);
+      await reserveRoomInventory(room.roomTypeId, room.checkInDate, room.checkOutDate, 1, db);
 
       const [reservationRoom] = await tx
         .insert(reservationRooms)

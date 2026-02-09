@@ -6,19 +6,21 @@ import {
   lte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   housekeepingTasks,
 } from '../../schema/housekeeping.js';
 
-export const listTasksForDate = async (taskDate: string) =>
+type DbConnection = typeof defaultDb;
+
+export const listTasksForDate = async (taskDate: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(housekeepingTasks)
     .where(eq(housekeepingTasks.taskDate, taskDate))
     .orderBy(asc(housekeepingTasks.roomId));
 
-export const listTasksForRoom = async (roomId: number, from: string, to: string) =>
+export const listTasksForRoom = async (roomId: number, from: string, to: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(housekeepingTasks)
@@ -29,7 +31,7 @@ export const listTasksForRoom = async (roomId: number, from: string, to: string)
     ))
     .orderBy(asc(housekeepingTasks.taskDate));
 
-export const listTasksForAssignee = async (userId: number, from: string, to: string) =>
+export const listTasksForAssignee = async (userId: number, from: string, to: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(housekeepingTasks)

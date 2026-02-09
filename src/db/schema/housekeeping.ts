@@ -71,7 +71,9 @@ export const housekeepingTasks = pgTable('housekeeping_tasks', {
   maintenanceNeeded: text('maintenance_needed'),
   
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
+  modifiedBy: integer('modified_by').references(() => users.id),
 }, (table) => ({
   housekeepingRoomDateIdx: index('idx_housekeeping_room_date').on(table.roomId, table.taskDate),
   housekeepingAssignedIdx: index('idx_housekeeping_assigned').on(table.assignedTo, table.status),
@@ -100,8 +102,9 @@ export const maintenanceRequests = pgTable('maintenance_requests', {
   cost: decimal('cost', { precision: 10, scale: 2 }),
   
   createdAt: timestamp('created_at').defaultNow(),
-  createdBy: integer('created_by').references(() => users.id),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+  createdBy: integer('created_by').references(() => users.id),
+  modifiedBy: integer('modified_by').references(() => users.id),
 }, (table) => ({
   maintenanceRoomIdx: index('idx_maintenance_room').on(table.roomId),
   maintenanceStatusIdx: index('idx_maintenance_status').on(table.status),

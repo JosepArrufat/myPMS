@@ -6,16 +6,19 @@ import {
   lte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   roomTypeRates,
 } from '../../schema/rates.js';
+
+type DbConnection = typeof defaultDb;
 
 export const findRateForStay = async (
   roomTypeId: number,
   ratePlanId: number,
   checkIn: string,
   checkOut: string,
+  db: DbConnection = defaultDb
 ) =>
   db
     .select()
@@ -28,7 +31,7 @@ export const findRateForStay = async (
     ))
     .orderBy(asc(roomTypeRates.startDate));
 
-export const listRatesForPlan = async (ratePlanId: number) =>
+export const listRatesForPlan = async (ratePlanId: number, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(roomTypeRates)

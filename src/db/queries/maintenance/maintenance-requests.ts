@@ -6,19 +6,21 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   maintenanceRequests,
 } from '../../schema/housekeeping.js';
 
-export const listOpenRequests = async () =>
+type DbConnection = typeof defaultDb;
+
+export const listOpenRequests = async (db: DbConnection = defaultDb) =>
   db
     .select()
     .from(maintenanceRequests)
     .where(eq(maintenanceRequests.status, 'open'))
     .orderBy(asc(maintenanceRequests.priority));
 
-export const listScheduledRequests = async (from: string) =>
+export const listScheduledRequests = async (from: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(maintenanceRequests)
@@ -28,7 +30,7 @@ export const listScheduledRequests = async (from: string) =>
     ))
     .orderBy(asc(maintenanceRequests.scheduledDate));
 
-export const listUrgentOpenRequests = async () =>
+export const listUrgentOpenRequests = async (db: DbConnection = defaultDb) =>
   db
     .select()
     .from(maintenanceRequests)

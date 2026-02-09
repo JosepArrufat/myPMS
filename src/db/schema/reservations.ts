@@ -76,6 +76,7 @@ export const reservations = pgTable('reservations', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
+  modifiedBy: integer('modified_by').references(() => users.id),
 }, (table) => ({
   reservationsNumberIdx: uniqueIndex('idx_reservations_number').on(table.reservationNumber),
   reservationsGuestIdx: index('idx_reservations_guest').on(table.guestId),
@@ -102,6 +103,9 @@ export const reservationRooms = pgTable('reservation_rooms', {
   
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+  createdBy: integer('created_by').references(() => users.id),
+  modifiedBy: integer('modified_by').references(() => users.id),
 }, (table) => ({
   reservationRoomsReservationIdx: index('idx_reservation_rooms_reservation').on(table.reservationId),
   reservationRoomsDatesIdx: index('idx_reservation_rooms_dates').on(table.checkInDate, table.checkOutDate),
@@ -117,6 +121,9 @@ export const reservationDailyRates = pgTable('reservation_daily_rates', {
   rate: decimal('rate', { precision: 10, scale: 2 }).notNull(),
   ratePlanId: integer('rate_plan_id').references(() => ratePlans.id),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+  createdBy: integer('created_by').references(() => users.id),
+  modifiedBy: integer('modified_by').references(() => users.id),
 }, (table) => ({
   dailyRatesRoomDateUnique: uniqueIndex('idx_daily_rates_room_date_unique').on(table.reservationRoomId, table.date),
   dailyRatesRoomIdx: index('idx_daily_rates_room').on(table.reservationRoomId),
@@ -154,7 +161,9 @@ export const roomBlocks = pgTable('room_blocks', {
   notes: text('notes'),
   
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   createdBy: integer('created_by').references(() => users.id),
+  modifiedBy: integer('modified_by').references(() => users.id),
   releasedAt: timestamp('released_at'),
   releasedBy: integer('released_by').references(() => users.id),
 }, (table) => ({

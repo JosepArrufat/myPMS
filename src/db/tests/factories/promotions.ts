@@ -3,8 +3,7 @@ import type {
   NewPromotion 
 } from '../../schema/promotions';
 import { promotions } from '../../schema/promotions';
-
-type TestDb = ReturnType<typeof import('drizzle-orm/postgres-js').drizzle>;
+import type { TestDb } from '../setup';
 
 export const createTestPromotion = async (
   db: TestDb,

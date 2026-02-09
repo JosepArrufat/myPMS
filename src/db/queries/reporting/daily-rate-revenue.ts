@@ -6,15 +6,18 @@ import {
   lte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   dailyRateRevenue,
 } from '../../schema/reporting.js';
+
+type DbConnection = typeof defaultDb;
 
 export const listRatePlanRevenueRange = async (
   ratePlanId: number,
   from: string,
   to: string,
+  db: DbConnection = defaultDb
 ) =>
   db
     .select()

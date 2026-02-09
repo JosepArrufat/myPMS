@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   primaryKey,
   AnyPgColumn,
+  integer,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -36,7 +37,6 @@ export const users = pgTable('users', {
   lastLogin: timestamp('last_login'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-  createdBy: serial('created_by').references((): AnyPgColumn => users.id),
 });
 export const permissions = pgTable('permissions', {
   id: serial('id').primaryKey(),

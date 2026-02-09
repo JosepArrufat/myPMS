@@ -4,12 +4,14 @@ import {
   eq,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   roomTypeRateAdjustments,
 } from '../../schema/rates.js';
 
-export const listAdjustmentsForBaseType = async (baseRoomTypeId: number, ratePlanId?: number) =>
+type DbConnection = typeof defaultDb;
+
+export const listAdjustmentsForBaseType = async (baseRoomTypeId: number, ratePlanId?: number, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(roomTypeRateAdjustments)
@@ -21,7 +23,7 @@ export const listAdjustmentsForBaseType = async (baseRoomTypeId: number, ratePla
       : eq(roomTypeRateAdjustments.baseRoomTypeId, baseRoomTypeId))
     .orderBy(asc(roomTypeRateAdjustments.derivedRoomTypeId));
 
-export const listAdjustmentsForDerivedType = async (derivedRoomTypeId: number) =>
+export const listAdjustmentsForDerivedType = async (derivedRoomTypeId: number, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(roomTypeRateAdjustments)

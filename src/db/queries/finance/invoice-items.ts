@@ -6,19 +6,21 @@ import {
   lte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   invoiceItems,
 } from '../../schema/invoices.js';
 
-export const listInvoiceItems = async (invoiceId: string) =>
+type DbConnection = typeof defaultDb;
+
+export const listInvoiceItems = async (invoiceId: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(invoiceItems)
     .where(eq(invoiceItems.invoiceId, invoiceId))
     .orderBy(asc(invoiceItems.id));
 
-export const listItemsInPeriod = async (from: string, to: string) =>
+export const listItemsInPeriod = async (from: string, to: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(invoiceItems)

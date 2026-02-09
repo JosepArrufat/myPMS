@@ -5,12 +5,19 @@ import {
   gte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   auditLog,
 } from '../../schema/audit.js';
 
-export const getAuditTrailForRecord = async (tableName: string, recordId: string, limit = 50) =>
+type DbConnection = typeof defaultDb;
+
+export const getAuditTrailForRecord = async (
+  tableName: string, 
+  recordId: string, 
+  limit = 50,
+  db: DbConnection = defaultDb
+) =>
   db
     .select()
     .from(auditLog)
@@ -18,7 +25,11 @@ export const getAuditTrailForRecord = async (tableName: string, recordId: string
     .orderBy(desc(auditLog.timestamp))
     .limit(limit);
 
-export const getAuditEventsForUser = async (userId: number, since?: Date) =>
+export const getAuditEventsForUser = async (
+  userId: number, 
+  since?: Date,
+  db: DbConnection = defaultDb
+) =>
   db
     .select()
     .from(auditLog)

@@ -7,12 +7,14 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   roomBlocks,
 } from '../../schema/reservations.js';
 
-export const listActiveBlocksForRange = async (from: string, to: string) =>
+type DbConnection = typeof defaultDb;
+
+export const listActiveBlocksForRange = async (from: string, to: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(roomBlocks)
@@ -23,7 +25,7 @@ export const listActiveBlocksForRange = async (from: string, to: string) =>
     ))
     .orderBy(asc(roomBlocks.startDate));
 
-export const listBlocksForRoom = async (roomId: number) =>
+export const listBlocksForRoom = async (roomId: number, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(roomBlocks)
@@ -38,7 +40,7 @@ export const createRoomBlock = async (payload: {
   blockType: string;
   quantity?: number;
   reason?: string;
-}) => {
+}, db: DbConnection = defaultDb) => {
   const quantity = payload.quantity ?? 1;
   return db.transaction(async (tx) => {
     const [block] = await tx.insert(roomBlocks).values({
@@ -65,7 +67,7 @@ export const createRoomBlock = async (payload: {
   });
 };
 
-export const releaseRoomBlock = async (blockId: number) => {
+export const releaseRoomBlock = async (blockId: number, db: DbConnection = defaultDb) => {
   return db.transaction(async (tx) => {
     const [b] = await tx.select().from(roomBlocks).where(eq(roomBlocks.id, blockId)).limit(1);
     if (!b) throw new Error('block not found');

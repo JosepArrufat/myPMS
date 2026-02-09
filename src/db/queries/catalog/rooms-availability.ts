@@ -6,11 +6,13 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import { rooms } from '../../schema/rooms.js';
 import { roomBlocks, roomAssignments } from '../../schema/reservations.js';
 
-export const isRoomAvailableNow = async (roomId: number, date: string) => {
+type DbConnection = typeof defaultDb;
+
+export const isRoomAvailableNow = async (roomId: number, date: string, db: DbConnection = defaultDb) => {
   const [room] = await db
     .select({ status: rooms.status })
     .from(rooms)

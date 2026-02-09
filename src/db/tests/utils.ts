@@ -1,3 +1,9 @@
+import type { User } from '../schema/users';
+import type { Guest } from '../schema/guests';
+
+export type BaseUser = User;
+export type BaseGuest = Guest;
+
 export const dateHelpers = {
   today: () => new Date().toISOString().split('T')[0],
   

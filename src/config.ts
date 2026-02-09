@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import type { MigrationConfig } from "drizzle-orm/migrator";
 
 type APIConfig = {

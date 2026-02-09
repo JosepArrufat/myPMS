@@ -4,18 +4,20 @@ import {
   eq,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   permissions,
 } from '../../schema/users.js';
 
-export const listPermissions = async () =>
+type DbConnection = typeof defaultDb;
+
+export const listPermissions = async (db: DbConnection = defaultDb) =>
   db
     .select()
     .from(permissions)
     .orderBy(asc(permissions.resource), asc(permissions.action));
 
-export const findPermission = async (resource: string, action: string) =>
+export const findPermission = async (resource: string, action: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(permissions)

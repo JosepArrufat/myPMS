@@ -4,11 +4,12 @@ import {
   eq,
   gte,
   ilike,
+  isNotNull,
   lte,
   sql,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   agencies,
 } from '../../schema/agencies.js';
@@ -16,14 +17,16 @@ import {
   reservations,
 } from '../../schema/reservations.js';
 
-export const findAgencyByCode = async (code: string) =>
+type DbConnection = typeof defaultDb;
+
+export const findAgencyByCode = async (code: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(agencies)
     .where(eq(agencies.code, code))
     .limit(1);
 
-export const searchAgencies = async (term: string, includeInactive = false) =>
+export const searchAgencies = async (term: string, includeInactive = false, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(agencies)
@@ -35,16 +38,10 @@ export const searchAgencies = async (term: string, includeInactive = false) =>
         ))
     .orderBy(agencies.name);
 
-export const listChannelManagers = async () =>
-  db
-    .select()
-    .from(agencies)
-    .where(sql`${agencies.channelManagerId} IS NOT NULL`)
-    .orderBy(agencies.name);
-
 export const listAgencyReservations = async (
   agencyId: number,
   range?: { from: string; to: string },
+  db: DbConnection = defaultDb
 ) =>
   db
     .select()

@@ -5,8 +5,7 @@ import type {
   NewRoom 
 } from '../../schema/rooms';
 import { roomTypes, rooms } from '../../schema/rooms';
-
-type TestDb = ReturnType<typeof import('drizzle-orm/postgres-js').drizzle>;
+import type { TestDb } from '../setup';
 
 export const createTestRoomType = async (
   db: TestDb,
@@ -38,16 +37,21 @@ export const createTestRoomType = async (
 
 export const createTestRoom = async (
   db: TestDb,
-  roomTypeId: number,
   overrides: Partial<NewRoom> = {},
   tx?: any
 ): Promise<Room> => {
   const conn = tx ?? db;
-  const randomNum = 100 + Math.floor(Math.random() * 900);
+  const timestamp = Date.now();
+  
+  let roomTypeId = overrides.roomTypeId;
+  if (!roomTypeId) {
+    const roomType = await createTestRoomType(db, {}, tx);
+    roomTypeId = roomType.id;
+  }
   
   const [room] = await conn.insert(rooms).values({
     roomTypeId,
-    roomNumber: randomNum,
+    roomNumber: `R${timestamp.toString().slice(-8)}`,
     floor: 1,
     status: 'available',
     ...overrides,

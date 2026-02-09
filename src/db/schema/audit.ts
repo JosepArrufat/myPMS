@@ -29,7 +29,6 @@ export const auditLog = pgTable('audit_log', {
   
   userId: integer('user_id').references(() => users.id),
   ipAddress: varchar('ip_address', { length: 45 }),
-  userAgent: text('user_agent'),
   timestamp: timestamp('timestamp').defaultNow(),
 }, (table) => ({
   auditLogTableRecordIdx: index('idx_audit_log_table_record').on(table.tableName, table.recordId),

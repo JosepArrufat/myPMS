@@ -8,35 +8,37 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   rooms,
 } from '../../schema/rooms.js';
 import { roomInventory } from '../../schema/roomInventory.js';
 import { roomBlocks, roomAssignments } from '../../schema/reservations.js';
 
-export const findRoomByNumber = async (roomNumber: string) =>
+type DbConnection = typeof defaultDb;
+
+export const findRoomByNumber = async (roomNumber: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(rooms)
     .where(eq(rooms.roomNumber, roomNumber))
     .limit(1);
 
-export const listRoomsByType = async (roomTypeId: number) =>
+export const listRoomsByType = async (roomTypeId: number, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(rooms)
     .where(eq(rooms.roomTypeId, roomTypeId))
     .orderBy(asc(rooms.roomNumber));
 
-export const listAvailableRooms = async () =>
+export const listAvailableRooms = async (db: DbConnection = defaultDb) =>
   db
     .select()
     .from(rooms)
     .where(eq(rooms.status, 'available'))
     .orderBy(asc(rooms.floor), asc(rooms.roomNumber));
 
-export const getAvailabilityByDay = async (roomTypeId: number, startDate: string, endDate: string) => {
+export const getAvailabilityByDay = async (roomTypeId: number, startDate: string, endDate: string, db: DbConnection = defaultDb) => {
   const rows = await db
     .select({ date: roomInventory.date, available: roomInventory.available })
     .from(roomInventory)
@@ -62,7 +64,7 @@ export const getAvailabilityByDay = async (roomTypeId: number, startDate: string
   return out;
 };
 
-export const reserveRoomInventory = async (roomTypeId: number, startDate: string, endDate: string, quantity = 1) => {
+export const reserveRoomInventory = async (roomTypeId: number, startDate: string, endDate: string, quantity = 1, db: DbConnection = defaultDb) => {
   return db.transaction(async (tx) => {
     const rows = await tx.execute<{ available: number }>(sql`
       SELECT available FROM room_inventory

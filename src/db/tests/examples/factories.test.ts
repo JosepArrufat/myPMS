@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { getTestDb, cleanupTestDb, verifyDbIsEmpty } from '../setup';
 import {
   createTestUser,
@@ -10,6 +10,10 @@ import {
 
 describe('Factory Examples', () => {
   const db = getTestDb();
+
+  beforeEach(async () => {
+    await cleanupTestDb(db);
+  });
 
   afterAll(async () => {
     await cleanupTestDb(db);
@@ -41,11 +45,10 @@ describe('Factory Examples', () => {
       basePrice: '250.00',
     });
     
-    const room = await createTestRoom(
-      db,
-      roomType.id,
-      { floor: 5 }
-    );
+    const room = await createTestRoom(db, {
+      roomTypeId: roomType.id,
+      floor: 5,
+    });
     
     expect(room.roomTypeId).toBe(roomType.id);
     expect(room.floor).toBe(5);
@@ -54,13 +57,12 @@ describe('Factory Examples', () => {
 
   it('should use factories in a transaction', async () => {
     await db.transaction(async (tx) => {
+      const user = await createTestUser(db, {}, tx);
       const guest = await createTestGuest(db, {}, tx);
       
-      const reservation = await createTestReservation(
-        db,
-        { guestId: guest.id },
-        tx
-      );
+      const reservation = await createTestReservation(db, user.id, {
+        guestId: guest.id,
+      }, tx);
       
       expect(reservation.guestId).toBe(guest.id);
     });

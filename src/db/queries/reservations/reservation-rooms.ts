@@ -6,12 +6,14 @@ import {
   lte,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   reservationRooms,
 } from '../../schema/reservations.js';
 
-export const listRoomsForReservation = async (reservationId: string) =>
+type DbConnection = typeof defaultDb;
+
+export const listRoomsForReservation = async (reservationId: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(reservationRooms)
@@ -22,6 +24,7 @@ export const findRoomConflicts = async (
   roomId: number,
   from: string,
   to: string,
+  db: DbConnection = defaultDb
 ) =>
   db
     .select()
@@ -37,6 +40,7 @@ export const findRoomTypeConflicts = async (
   roomTypeId: number,
   from: string,
   to: string,
+  db: DbConnection = defaultDb
 ) =>
   db
     .select()

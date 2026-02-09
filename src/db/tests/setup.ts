@@ -1,127 +1,97 @@
 import postgres from 'postgres';
+import type { Sql } from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import * as schema from '../schema/index';
 
-type TestDb = ReturnType<typeof drizzle>;
+// ─── Types ──────────────────────────────────────────────────────────
+export type TestDb = PostgresJsDatabase<typeof schema> & { $client: Sql };
 
+// ─── Singleton connection ───────────────────────────────────────────
+// max:1 → one TCP connection to Postgres, one query at a time.
+// Combined with Vitest singleFork mode this guarantees that only ONE
+// PostgreSQL backend is ever active, making deadlocks impossible.
 let testConnection: ReturnType<typeof postgres> | null = null;
 let testDb: TestDb | null = null;
 
 export const getTestDb = (): TestDb => {
   if (testDb) return testDb;
 
-  const connectionString = process.env.TEST_DATABASE_URL ||
+  const connectionString =
+    process.env.TEST_DATABASE_URL ||
     'postgresql://hotel_user:hotel_pass@localhost:5433/hotel_pms_test';
 
-  if (!testConnection) {
-    testConnection = postgres(connectionString);
-  }
-
+  testConnection = postgres(connectionString, { max: 1 });
   testDb = drizzle(testConnection, { schema });
   return testDb;
 };
 
+// ─── Table list (leaf tables first, root tables last) ───────────────
+// Order doesn't matter for a single TRUNCATE … CASCADE statement, but
+// keeping it organised from leaves → roots makes the dependency chain
+// easier to read.
+const ALL_TABLES = [
+  'audit_log',
+  'daily_rate_revenue',
+  'daily_room_type_revenue',
+  'daily_revenue',
+  'monthly_revenue',
+  'yearly_revenue',
+  'invoice_items',
+  'payments',
+  'invoices',
+  'reservation_daily_rates',
+  'reservation_rooms',
+  'room_assignments',
+  'reservations',
+  'room_blocks',
+  'housekeeping_tasks',
+  'maintenance_requests',
+  'room_inventory',
+  'room_type_rate_adjustments',
+  'room_type_rates',
+  'rooms',
+  'room_types',
+  'promotions',
+  'rate_plans',
+  'guests',
+  'agencies',
+  'role_permissions',
+  'users',
+  'permissions',
+] as const;
+
+// ─── Cleanup (called in every beforeEach) ───────────────────────────
+// One single TRUNCATE statement listing every table.
+// • Atomic — Postgres acquires all AccessExclusiveLocks at once,
+//   so there is no window for another backend to interleave.
+// • RESTART IDENTITY resets every serial / bigserial sequence to 1,
+//   so auto-generated IDs are predictable across tests.
+// • CASCADE automatically handles child rows via foreign keys.
+const TABLE_LIST = ALL_TABLES.map((t) => `"${t}"`).join(', ');
 
 export const cleanupTestDb = async (db: TestDb): Promise<void> => {
-  try {
-    await db.execute(sql`SET session_replication_role = 'replica'`);
-    
-    await db.execute(sql`TRUNCATE TABLE invoice_items CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE payments CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE invoices CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE reservation_daily_rates CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE reservation_rooms CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE room_assignments CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE reservations CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE room_blocks CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE housekeeping_tasks CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE maintenance_requests CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE room_inventory CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE room_type_rate_adjustments CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE room_type_rates CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE rooms CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE room_types CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE promotions CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE rate_plans CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE guests CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE agencies CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE role_permissions CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE users CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE permissions CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE daily_rate_revenue CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE daily_room_type_revenue CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE daily_revenue CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE monthly_revenue CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE yearly_revenue CASCADE`);
-    
-    await db.execute(sql`TRUNCATE TABLE audit_log CASCADE`);
-    
-    await db.execute(sql`SET session_replication_role = 'origin'`);
-  } catch (error) {
-        await db.execute(sql`SET session_replication_role = 'origin'`);
-        throw error;
-  }
+  await db.execute(
+    sql.raw(`TRUNCATE TABLE ${TABLE_LIST} RESTART IDENTITY CASCADE`),
+  );
 };
 
+// ─── Verification (called in afterAll as a safety net) ──────────────
 export const verifyDbIsEmpty = async (db: TestDb): Promise<void> => {
-  const tables = [
-    'invoice_items', 'payments', 'invoices',
-    'reservation_daily_rates', 'reservation_rooms', 'room_assignments', 'reservations', 'room_blocks',
-    'housekeeping_tasks', 'maintenance_requests',
-    'room_inventory', 'room_type_rate_adjustments', 'room_type_rates', 'rooms', 'room_types',
-    'promotions', 'rate_plans',
-    'guests', 'agencies',
-    'role_permissions', 'users', 'permissions',
-    'daily_rate_revenue', 'daily_room_type_revenue', 'daily_revenue', 'monthly_revenue', 'yearly_revenue',
-    'audit_log'
-  ];
-  
-  const nonEmptyTables: string[] = [];
-  
-  for (const table of tables) {
-    try {
-      const result = await db.execute(sql.raw(`SELECT COUNT(*) as count FROM ${table}`));
-      const count = (result[0] as Record<string, unknown> | undefined)?.count;
-      if (count && parseInt(count as string) > 0) {
-        nonEmptyTables.push(`${table} (${count} rows)`);
-      }
-    } catch (error) {
-      // Table might not exist, skip
-    }
-  }
-  
-  if (nonEmptyTables.length > 0) {
-    throw new Error(`Database cleanup incomplete. Non-empty tables: ${nonEmptyTables.join(', ')}`);
-  }
-};
+  const nonEmpty: string[] = [];
 
-export const resetSequences = async (db: TestDb): Promise<void> => {
-  const tables = [
-    'guests',
-    'agencies',
-    'room_types',
-    'rooms',
-    'rate_plans',
-    'reservations',
-    'reservation_rooms',
-    'invoices',
-    'users',
-    'permissions',
-  ];
-  for (const table of tables) {
-    try {
-      await db.execute(sql.raw(`ALTER SEQUENCE ${table}_id_seq RESTART WITH 1`));
-    } catch (error) {
-      // Ignore if sequence doesn't exist
-    }
+  for (const table of ALL_TABLES) {
+    const rows = await db.execute(
+      sql.raw(`SELECT COUNT(*)::int AS n FROM "${table}"`),
+    );
+    const count = (rows[0] as Record<string, unknown>)?.n ?? 0;
+    if (Number(count) > 0) nonEmpty.push(`${table} (${count})`);
+  }
+
+  if (nonEmpty.length > 0) {
+    throw new Error(
+      `DB not empty after cleanup – ${nonEmpty.join(', ')}`,
+    );
   }
 };

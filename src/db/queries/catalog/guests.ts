@@ -7,19 +7,21 @@ import {
   or,
 } from 'drizzle-orm';
 
-import { db } from '../../index.js';
+import { db as defaultDb } from '../../index.js';
 import {
   guests,
 } from '../../schema/guests.js';
 
-export const findGuestByEmail = async (email: string) =>
+type DbConnection = typeof defaultDb;
+
+export const findGuestByEmail = async (email: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(guests)
     .where(eq(guests.email, email))
     .limit(1);
 
-export const searchGuests = async (term: string) =>
+export const searchGuests = async (term: string, db: DbConnection = defaultDb) =>
   db
     .select()
     .from(guests)
@@ -30,7 +32,7 @@ export const searchGuests = async (term: string) =>
     ))
     .orderBy(asc(guests.lastName), asc(guests.firstName));
 
-export const listVipGuests = async () =>
+export const listVipGuests = async (db: DbConnection = defaultDb) =>
   db
     .select()
     .from(guests)

@@ -6,7 +6,14 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000,
     hookTimeout: 30000,
-    isolate: true,
-    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    fileParallelism: false,
+    sequence: {
+      concurrent: false,
+    },
   },
 });

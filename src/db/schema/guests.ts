@@ -33,13 +33,11 @@ export const guests = pgTable('guests', {
   nationality: varchar('nationality', { length: 100 }),
   languagePreference: varchar('language_preference', { length: 10 }).default('en'),
   
-  // Identification
   idDocumentType: guestDocumentTypeEnum('id_document_type'),
   idDocumentNumber: varchar('id_document_number', { length: 100 }),
   idDocumentExpiry: date('id_document_expiry'),
   idDocumentCountry: varchar('id_document_country', { length: 100 }),
   
-  // Address
   addressLine1: varchar('address_line1', { length: 255 }),
   addressLine2: varchar('address_line2', { length: 255 }),
   city: varchar('city', { length: 100 }),
@@ -47,7 +45,6 @@ export const guests = pgTable('guests', {
   postalCode: varchar('postal_code', { length: 20 }),
   country: varchar('country', { length: 100 }),
   
-  // Preferences & Notes
   preferences: jsonb('preferences').$type<{
     floor?: 'low' | 'high';
     bedType?: 'single' | 'double' | 'king' | 'queen';
@@ -67,7 +64,6 @@ export const guests = pgTable('guests', {
   // Metadata
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-  createdBy: serial('created_by').references(() => users.id),
 }, (table) => ({
   emailIdx: index('idx_guests_email').on(table.email).where(sql`${table.email} IS NOT NULL`),
   nameIdx: index('idx_guests_name').on(table.lastName, table.firstName),

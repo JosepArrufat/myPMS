@@ -1,7 +1,6 @@
 import type { RatePlan, NewRatePlan } from '../../schema/rates';
 import { ratePlans } from '../../schema/rates';
-
-type TestDb = ReturnType<typeof import('drizzle-orm/postgres-js').drizzle>;
+import type { TestDb } from '../setup';
 
 export const createTestRatePlan = async (
   db: TestDb,

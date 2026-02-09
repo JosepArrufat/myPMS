@@ -1,7 +1,6 @@
 import type { Agency, NewAgency } from '../../schema/agencies';
 import { agencies } from '../../schema/agencies';
-
-type TestDb = ReturnType<typeof import('drizzle-orm/postgres-js').drizzle>;
+import type { TestDb } from '../setup';
 
 export const createTestAgency = async (
   db: TestDb,

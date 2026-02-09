@@ -11,17 +11,22 @@ import {
   invoiceItems,
   payments 
 } from '../../schema/invoices';
-
-type TestDb = ReturnType<typeof import('drizzle-orm/postgres-js').drizzle>;
+import type { TestDb } from '../setup';
 
 export const createTestInvoice = async (
   db: TestDb,
-  guestId: string,
   overrides: Partial<NewInvoice> = {},
   tx?: any
 ): Promise<Invoice> => {
   const conn = tx ?? db;
   const timestamp = Date.now();
+  
+  let guestId = overrides.guestId;
+  if (!guestId) {
+    const { createTestGuest } = await import('./guests');
+    const guest = await createTestGuest(db, {}, tx);
+    guestId = guest.id;
+  }
   
   const [invoice] = await conn.insert(invoices).values({
     invoiceNumber: `INV${timestamp}`,
@@ -41,11 +46,16 @@ export const createTestInvoice = async (
 
 export const createTestInvoiceItem = async (
   db: TestDb,
-  invoiceId: string,
   overrides: Partial<NewInvoiceItem> = {},
   tx?: any
 ): Promise<InvoiceItem> => {
   const conn = tx ?? db;
+  
+  let invoiceId = overrides.invoiceId;
+  if (!invoiceId) {
+    const invoice = await createTestInvoice(db, {}, tx);
+    invoiceId = invoice.id;
+  }
   
   const [item] = await conn.insert(invoiceItems).values({
     invoiceId,
@@ -62,11 +72,16 @@ export const createTestInvoiceItem = async (
 
 export const createTestPayment = async (
   db: TestDb,
-  invoiceId: string,
   overrides: Partial<NewPayment> = {},
   tx?: any
 ): Promise<Payment> => {
   const conn = tx ?? db;
+  
+  let invoiceId = overrides.invoiceId;
+  if (!invoiceId) {
+    const invoice = await createTestInvoice(db, {}, tx);
+    invoiceId = invoice.id;
+  }
   
   const [payment] = await conn.insert(payments).values({
     invoiceId,
