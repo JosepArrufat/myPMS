@@ -4,18 +4,19 @@ import {
   eq,
   gte,
   lt,
-  lte,
   sql,
 } from 'drizzle-orm';
+
+import type { PgTransaction } from 'drizzle-orm/pg-core';
 
 import { db as defaultDb } from '../../index.js';
 import {
   rooms,
 } from '../../schema/rooms.js';
 import { roomInventory } from '../../schema/roomInventory.js';
-import { roomBlocks, roomAssignments } from '../../schema/reservations.js';
 
 type DbConnection = typeof defaultDb;
+type TxOrDb = DbConnection | PgTransaction<any, any, any>;
 
 export const findRoomByNumber = async (roomNumber: string, db: DbConnection = defaultDb) =>
   db
@@ -64,7 +65,7 @@ export const getAvailabilityByDay = async (roomTypeId: number, startDate: string
   return out;
 };
 
-export const reserveRoomInventory = async (roomTypeId: number, startDate: string, endDate: string, quantity = 1, db: DbConnection = defaultDb) => {
+export const reserveRoomInventory = async (roomTypeId: number, startDate: string, endDate: string, quantity = 1, db: TxOrDb = defaultDb) => {
   return db.transaction(async (tx) => {
     const rows = await tx.execute<{ available: number }>(sql`
       SELECT available FROM room_inventory
@@ -78,7 +79,7 @@ export const reserveRoomInventory = async (roomTypeId: number, startDate: string
       throw new Error('inventory missing for some dates');
     }
 
-    const soldOut = rows.some(r => Number(r.available) < quantity);
+    const soldOut = rows.some((r: { available: number }) => Number(r.available) < quantity);
     if (soldOut) {
       throw new Error('sold out');
     }

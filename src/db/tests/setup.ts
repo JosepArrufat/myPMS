@@ -27,6 +27,25 @@ export const getTestDb = (): TestDb => {
   return testDb;
 };
 
+// ─── Concurrent pool (for race-condition tests only) ────────────────
+// Returns a SEPARATE drizzle instance backed by a pool with max:2,
+// so two transactions can truly run in parallel.  The caller MUST
+// call the returned `close()` function in afterAll to release the
+// connections and avoid leaked handles.
+export const getConcurrentTestDb = () => {
+  const connectionString =
+    process.env.TEST_DATABASE_URL ||
+    'postgresql://hotel_user:hotel_pass@localhost:5433/hotel_pms_test';
+
+  const pool = postgres(connectionString, { max: 2 });
+  const db = drizzle(pool, { schema }) as TestDb;
+
+  return {
+    db,
+    close: async () => { await pool.end(); },
+  };
+};
+
 // ─── Table list (leaf tables first, root tables last) ───────────────
 // Order doesn't matter for a single TRUNCATE … CASCADE statement, but
 // keeping it organised from leaves → roots makes the dependency chain

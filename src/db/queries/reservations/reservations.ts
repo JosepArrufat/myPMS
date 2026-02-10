@@ -145,7 +145,7 @@ export const createReservation = async (input: CreateReservationInput, db: DbCon
       .returning();
 
     for (const room of input.rooms) {
-      await reserveRoomInventory(room.roomTypeId, room.checkInDate, room.checkOutDate, 1, db);
+      await reserveRoomInventory(room.roomTypeId, room.checkInDate, room.checkOutDate, 1, tx);
 
       const [reservationRoom] = await tx
         .insert(reservationRooms)
