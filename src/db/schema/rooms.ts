@@ -24,6 +24,12 @@ export const roomStatusEnum = pgEnum('room_status', [
   'blocked'
 ]);
 
+export const cleanlinessStatusEnum = pgEnum('cleanliness_status', [
+  'clean',
+  'dirty',
+  'inspected',
+]);
+
 export const roomTypes = pgTable('room_types', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
@@ -65,6 +71,7 @@ export const rooms = pgTable('rooms', {
   floor: integer('floor'),
   building: varchar('building', { length: 50 }),
   status: roomStatusEnum('status').notNull().default('available'),
+  cleanlinessStatus: cleanlinessStatusEnum('cleanliness_status').notNull().default('clean'),
   
   hasConnectingDoor: boolean('has_connecting_door').default(false),
   connectingRoomId: integer('connecting_room_id').references((): AnyPgColumn => rooms.id),
@@ -76,6 +83,7 @@ export const rooms = pgTable('rooms', {
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 }, (table) => ({
   roomsNumberIdx: uniqueIndex('idx_rooms_number').on(table.roomNumber),
+  roomsStatusCleanlinessIdx: index('idx_rooms_status_cleanliness').on(table.status, table.cleanlinessStatus),
 }));
 
 export type RoomType = typeof roomTypes.$inferSelect;
