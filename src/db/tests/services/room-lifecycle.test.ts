@@ -21,9 +21,9 @@ import {
   createTestReservation,
 } from '../factories'
 
-import { checkoutReservation } from '../../../services/checkout'
-import { canCheckIn, checkInReservation } from '../../../services/checkin'
-import { inspectRoom } from '../../../services/inspection'
+import { checkoutReservation } from '../../services/checkout'
+import { canCheckIn, checkInReservation } from '../../services/checkin'
+import { inspectRoom } from '../../services/inspection'
 
 import { rooms } from '../../schema/rooms'
 import { housekeepingTasks } from '../../schema/housekeeping'
