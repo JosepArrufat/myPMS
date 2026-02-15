@@ -15,6 +15,9 @@ import {
 import { createTestGuest } from '../../factories';
 
 import {
+  createGuest,
+  updateGuest,
+  findGuestById,
   findGuestByEmail,
   searchGuests,
   listVipGuests,
@@ -111,6 +114,60 @@ describe('Catalog - guests', () => {
       await createTestGuest(db, { vipStatus: false });
 
       const result = await listVipGuests(db);
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('createGuest', () => {
+    it('creates a guest and returns it with an id', async () => {
+      const guest = await createGuest(
+        {
+          firstName: 'New',
+          lastName: 'Guest',
+          email: 'new@example.com',
+          phone: '+1555000000',
+        },
+        db,
+      );
+
+      expect(guest.id).toBeTruthy();
+      expect(guest.firstName).toBe('New');
+      expect(guest.email).toBe('new@example.com');
+    });
+  });
+
+  describe('updateGuest', () => {
+    it('updates guest fields and returns updated record', async () => {
+      const guest = await createTestGuest(db, { vipStatus: false });
+
+      const updated = await updateGuest(
+        guest.id,
+        { vipStatus: true, phone: '+9990000000' },
+        db,
+      );
+
+      expect(updated.vipStatus).toBe(true);
+      expect(updated.phone).toBe('+9990000000');
+      expect(updated.firstName).toBe(guest.firstName);
+    });
+  });
+
+  describe('findGuestById', () => {
+    it('returns the guest by UUID', async () => {
+      const guest = await createTestGuest(db);
+
+      const result = await findGuestById(guest.id, db);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(guest.id);
+    });
+
+    it('returns empty for non-existent ID', async () => {
+      const result = await findGuestById(
+        '00000000-0000-0000-0000-000000000000',
+        db,
+      );
+
       expect(result).toEqual([]);
     });
   });

@@ -19,6 +19,12 @@ import {
 } from '../../factories';
 
 import {
+  createRoomType,
+  updateRoomType,
+  findRoomTypeById,
+  listRoomTypes,
+  createRoom,
+  updateRoom,
   findRoomByNumber,
   listRoomsByType,
   listAvailableRooms,
@@ -197,6 +203,98 @@ describe('Catalog - rooms', () => {
           status: 'available',
         }),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('createRoomType', () => {
+    it('creates a room type and returns it', async () => {
+      const rt = await createRoomType(
+        {
+          name: 'Presidential Suite',
+          code: 'PRES',
+          totalRooms: 2,
+          basePrice: '500.00',
+          maxOccupancy: 4,
+          maxAdults: 2,
+          maxChildren: 2,
+        },
+        db,
+      );
+
+      expect(rt.id).toBeTruthy();
+      expect(rt.name).toBe('Presidential Suite');
+      expect(rt.code).toBe('PRES');
+    });
+  });
+
+  describe('updateRoomType', () => {
+    it('updates room type fields', async () => {
+      const rt = await createTestRoomType(db);
+
+      const updated = await updateRoomType(
+        rt.id,
+        { basePrice: '350.00', description: 'Renovated' },
+        db,
+      );
+
+      expect(updated.basePrice).toBe('350.00');
+      expect(updated.description).toBe('Renovated');
+    });
+  });
+
+  describe('findRoomTypeById', () => {
+    it('returns the room type by id', async () => {
+      const rt = await createTestRoomType(db);
+
+      const result = await findRoomTypeById(rt.id, db);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(rt.id);
+    });
+  });
+
+  describe('listRoomTypes', () => {
+    it('lists only active room types', async () => {
+      await createTestRoomType(db, { isActive: true });
+      await createTestRoomType(db, { isActive: false });
+
+      const results = await listRoomTypes(db);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].isActive).toBe(true);
+    });
+  });
+
+  describe('createRoom', () => {
+    it('creates a room and returns it', async () => {
+      const rt = await createTestRoomType(db);
+
+      const room = await createRoom(
+        {
+          roomNumber: 'NEW-101',
+          roomTypeId: rt.id,
+          floor: 1,
+        },
+        db,
+      );
+
+      expect(room.roomNumber).toBe('NEW-101');
+      expect(room.roomTypeId).toBe(rt.id);
+    });
+  });
+
+  describe('updateRoom', () => {
+    it('updates room fields', async () => {
+      const room = await createTestRoom(db);
+
+      const updated = await updateRoom(
+        room.id,
+        { floor: 5, notes: 'Corner room with view' },
+        db,
+      );
+
+      expect(updated.floor).toBe(5);
+      expect(updated.notes).toBe('Corner room with view');
     });
   });
 });

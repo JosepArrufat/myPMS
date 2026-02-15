@@ -13,11 +13,38 @@ import { db as defaultDb } from '../../index.js';
 import {
   agencies,
 } from '../../schema/agencies.js';
+import type { NewAgency } from '../../schema/agencies.js';
 import {
   reservations,
 } from '../../schema/reservations.js';
 
 type DbConnection = typeof defaultDb;
+
+export const createAgency = async (
+  data: NewAgency,
+  db: DbConnection = defaultDb,
+) => {
+  const [agency] = await db
+    .insert(agencies)
+    .values(data)
+    .returning()
+
+  return agency
+}
+
+export const updateAgency = async (
+  agencyId: number,
+  data: Partial<NewAgency>,
+  db: DbConnection = defaultDb,
+) => {
+  const [agency] = await db
+    .update(agencies)
+    .set(data)
+    .where(eq(agencies.id, agencyId))
+    .returning()
+
+  return agency
+}
 
 export const findAgencyByCode = async (code: string, db: DbConnection = defaultDb) =>
   db

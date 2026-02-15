@@ -12,11 +12,82 @@ import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { db as defaultDb } from '../../index.js';
 import {
   rooms,
+  roomTypes,
 } from '../../schema/rooms.js';
 import { roomInventory } from '../../schema/roomInventory.js';
+import type { NewRoom, NewRoomType } from '../../schema/rooms.js';
 
 type DbConnection = typeof defaultDb;
 type TxOrDb = DbConnection | PgTransaction<any, any, any>;
+
+export const createRoomType = async (
+  data: NewRoomType,
+  db: DbConnection = defaultDb,
+) => {
+  const [roomType] = await db
+    .insert(roomTypes)
+    .values(data)
+    .returning()
+
+  return roomType
+}
+
+export const updateRoomType = async (
+  roomTypeId: number,
+  data: Partial<NewRoomType>,
+  db: DbConnection = defaultDb,
+) => {
+  const [roomType] = await db
+    .update(roomTypes)
+    .set(data)
+    .where(eq(roomTypes.id, roomTypeId))
+    .returning()
+
+  return roomType
+}
+
+export const findRoomTypeById = async (
+  roomTypeId: number,
+  db: DbConnection = defaultDb,
+) =>
+  db
+    .select()
+    .from(roomTypes)
+    .where(eq(roomTypes.id, roomTypeId))
+    .limit(1);
+
+export const listRoomTypes = async (db: DbConnection = defaultDb) =>
+  db
+    .select()
+    .from(roomTypes)
+    .where(eq(roomTypes.isActive, true))
+    .orderBy(asc(roomTypes.sortOrder));
+
+export const createRoom = async (
+  data: NewRoom,
+  db: DbConnection = defaultDb,
+) => {
+  const [room] = await db
+    .insert(rooms)
+    .values(data)
+    .returning()
+
+  return room
+}
+
+export const updateRoom = async (
+  roomId: number,
+  data: Partial<NewRoom>,
+  db: DbConnection = defaultDb,
+) => {
+  const [room] = await db
+    .update(rooms)
+    .set(data)
+    .where(eq(rooms.id, roomId))
+    .returning()
+
+  return room
+}
 
 export const findRoomByNumber = async (roomNumber: string, db: DbConnection = defaultDb) =>
   db

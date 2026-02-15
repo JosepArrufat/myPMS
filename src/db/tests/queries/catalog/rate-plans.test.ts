@@ -12,9 +12,12 @@ import {
   verifyDbIsEmpty,
 } from '../../setup';
 
-import { createTestRatePlan } from '../../factories';
+import { createTestRatePlan, createTestRoomType } from '../../factories';
 
 import {
+  createRatePlan,
+  updateRatePlan,
+  createRoomTypeRate,
   findRatePlanByCode,
   listActiveRatePlans,
   listRatePlansForStay,
@@ -116,6 +119,65 @@ describe('Catalog - rate plans', () => {
         db,
       );
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('createRatePlan', () => {
+    it('creates a rate plan and returns it', async () => {
+      const plan = await createRatePlan(
+        {
+          name: 'Early Bird',
+          code: 'EARLY',
+          description: 'Book 30 days ahead',
+          requiresAdvanceBookingDays: 30,
+          isActive: true,
+          validFrom: '2026-01-01',
+          validTo: '2026-12-31',
+        },
+        db,
+      );
+
+      expect(plan.id).toBeTruthy();
+      expect(plan.code).toBe('EARLY');
+      expect(plan.name).toBe('Early Bird');
+    });
+  });
+
+  describe('updateRatePlan', () => {
+    it('updates rate plan fields', async () => {
+      const plan = await createTestRatePlan(db);
+
+      const updated = await updateRatePlan(
+        plan.id,
+        { description: 'Updated plan', isActive: false },
+        db,
+      );
+
+      expect(updated.description).toBe('Updated plan');
+      expect(updated.isActive).toBe(false);
+    });
+  });
+
+  describe('createRoomTypeRate', () => {
+    it('creates a room type rate linking plan and room type', async () => {
+      const rt = await createTestRoomType(db);
+      const plan = await createTestRatePlan(db);
+
+      const rate = await createRoomTypeRate(
+        {
+          roomTypeId: rt.id,
+          ratePlanId: plan.id,
+          startDate: '2026-03-01',
+          endDate: '2026-03-31',
+          price: '150.00',
+        },
+        db,
+      );
+
+      expect(rate.id).toBeTruthy();
+      expect(rate.price).toBe('150.00');
+      expect(rate.roomTypeId).toBe(rt.id);
+      expect(rate.ratePlanId).toBe(plan.id);
     });
   });
 });

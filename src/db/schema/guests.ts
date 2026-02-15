@@ -46,8 +46,14 @@ export const guests = pgTable('guests', {
   country: varchar('country', { length: 100 }),
   
   preferences: jsonb('preferences').$type<{
-    floor?: 'low' | 'high';
-    bedType?: 'single' | 'double' | 'king' | 'queen';
+    floor?:
+      | 'low'
+      | 'high';
+    bedType?:
+      | 'single'
+      | 'double'
+      | 'king'
+      | 'queen';
     pillowType?: 'soft' | 'firm';
     smokingRoom?: boolean;
     [key: string]: any;

@@ -11,8 +11,35 @@ import { db as defaultDb } from '../../index.js';
 import {
   promotions,
 } from '../../schema/promotions.js';
+import type { NewPromotion } from '../../schema/promotions.js';
 
 type DbConnection = typeof defaultDb;
+
+export const createPromotion = async (
+  data: NewPromotion,
+  db: DbConnection = defaultDb,
+) => {
+  const [promotion] = await db
+    .insert(promotions)
+    .values(data)
+    .returning()
+
+  return promotion
+}
+
+export const updatePromotion = async (
+  promotionId: number,
+  data: Partial<NewPromotion>,
+  db: DbConnection = defaultDb,
+) => {
+  const [promotion] = await db
+    .update(promotions)
+    .set(data)
+    .where(eq(promotions.id, promotionId))
+    .returning()
+
+  return promotion
+}
 
 export const findPromotionByCode = async (code: string, db: DbConnection = defaultDb) =>
   db

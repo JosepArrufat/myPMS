@@ -22,6 +22,8 @@ import {
   findAgencyByCode,
   searchAgencies,
   listAgencyReservations,
+  createAgency,
+  updateAgency,
 } from '../../../queries/catalog/agencies';
 import type { BaseUser } from '../../utils';
 import { Agency, Guest, NewAgency } from 'src/db/schema';
@@ -164,6 +166,40 @@ describe('Agency Queries', () => {
       const results = await listAgencyReservations(agency.id, undefined, db);
 
       expect(results).toEqual([]);
+    });
+  });
+
+  describe('createAgency', () => {
+    it('creates an agency and returns it', async () => {
+      const agency = await createAgency(
+        {
+          name: 'New Travel Co',
+          code: 'NTC001',
+          type: 'agency',
+          contactPerson: 'Mary',
+          email: 'mary@ntc.com',
+        },
+        db,
+      );
+
+      expect(agency.id).toBeTruthy();
+      expect(agency.name).toBe('New Travel Co');
+      expect(agency.code).toBe('NTC001');
+    });
+  });
+
+  describe('updateAgency', () => {
+    it('updates agency fields', async () => {
+      const ag = await createTestAgency(db);
+
+      const updated = await updateAgency(
+        ag.id,
+        { commissionPercent: '15.00', isActive: false },
+        db,
+      );
+
+      expect(updated.commissionPercent).toBe('15.00');
+      expect(updated.isActive).toBe(false);
     });
   });
 });

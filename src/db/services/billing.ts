@@ -8,12 +8,16 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db as defaultDb } from '../index.js'
 import {
   invoiceStatusEnum,
+  invoiceItemTypeEnum,
+  paymentMethodEnum,
   invoices,
   invoiceItems,
   payments,
 } from '../schema/invoices.js'
 
 type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number]
+type InvoiceItemType = (typeof invoiceItemTypeEnum.enumValues)[number]
+type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number]
 import {
   reservations,
   reservationRooms,
@@ -144,17 +148,7 @@ export const generateInvoice = async (
 export const addCharge = async (
   invoiceId: string,
   item: {
-    itemType: 
-        'room' | 
-        'food' | 
-        'beverage' | 
-        'minibar' | 
-        'laundry' | 
-        'spa' | 
-        'parking' | 
-        'telephone' | 
-        'internet' | 
-        'other'
+    itemType: InvoiceItemType
     description: string
     dateOfService?: string
     quantity?: string
@@ -214,14 +208,7 @@ export const recordPayment = async (
   invoiceId: string,
   payment: {
     amount: string
-    paymentMethod:
-      | 'cash'
-      | 'credit_card'
-      | 'debit_card'
-      | 'bank_transfer'
-      | 'cheque'
-      | 'online_payment'
-      | 'corporate_account'
+    paymentMethod: PaymentMethod
     transactionReference?: string
     notes?: string
   },

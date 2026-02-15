@@ -18,6 +18,8 @@ import {
   findPromotionByCode,
   listActivePromotions,
   listPromotionsForPeriod,
+  createPromotion,
+  updatePromotion,
 } from '../../../../db/queries/catalog/promotions';
 
 describe('Catalog - promotions', () => {
@@ -114,6 +116,42 @@ describe('Catalog - promotions', () => {
         db,
       );
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('createPromotion', () => {
+    it('creates a promotion and returns it', async () => {
+      const promo = await createPromotion(
+        {
+          code: 'NEWYEAR25',
+          name: 'New Year Special',
+          discountType: 'percent',
+          discountValue: '25.00',
+          validFrom: '2026-12-25',
+          validTo: '2027-01-05',
+          isActive: true,
+        },
+        db,
+      );
+
+      expect(promo.id).toBeTruthy();
+      expect(promo.code).toBe('NEWYEAR25');
+      expect(promo.discountValue).toBe('25.00');
+    });
+  });
+
+  describe('updatePromotion', () => {
+    it('updates promotion fields', async () => {
+      const promo = await createTestPromotion(db);
+
+      const updated = await updatePromotion(
+        promo.id,
+        { discountValue: '20.00', isActive: false },
+        db,
+      );
+
+      expect(updated.discountValue).toBe('20.00');
+      expect(updated.isActive).toBe(false);
     });
   });
 });
