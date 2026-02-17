@@ -11,6 +11,10 @@ import { db as defaultDb } from '../../index.js';
 import {
   roomBlocks,
 } from '../../schema/reservations.js';
+import {
+  decrementInventory,
+  incrementInventory,
+} from '../../utils.js';
 
 type DbConnection = typeof defaultDb;
 
@@ -54,13 +58,13 @@ export const createRoomBlock = async (payload: {
     }).returning();
 
     if (payload.roomTypeId) {
-      await tx.execute(sql`
-        UPDATE room_inventory
-        SET available = available - ${quantity}
-        WHERE room_type_id = ${payload.roomTypeId}
-          AND date >= ${payload.startDate}
-          AND date < ${payload.endDate}
-      `);
+      await decrementInventory(
+        payload.roomTypeId,
+        payload.startDate,
+        payload.endDate,
+        quantity,
+        tx,
+      );
     }
 
     return block;
@@ -71,19 +75,32 @@ export const releaseRoomBlock = async (blockId: number, db: DbConnection = defau
   return db.transaction(async (tx) => {
     const [b] = await tx.select().from(roomBlocks).where(eq(roomBlocks.id, blockId)).limit(1);
     if (!b) throw new Error('block not found');
+    if (b.releasedAt) throw new Error('block already released');
+
+    // Count rooms already picked up from this block (linked via block_id)
+    const [pickupResult] = await tx.execute(sql`
+      SELECT COUNT(*)::int AS pickup
+      FROM reservation_rooms rr
+      JOIN reservations r ON r.id = rr.reservation_id
+      WHERE rr.block_id = ${blockId}
+        AND r.status IN ('pending', 'confirmed', 'checked_in')
+    `);
+    const pickedUp = (pickupResult as any).pickup ?? 0;
+    const unreleased = (b.quantity ?? 0) - pickedUp;
 
     await tx.update(roomBlocks).set({ releasedAt: new Date() }).where(eq(roomBlocks.id, blockId));
 
-    if (b.roomTypeId) {
-      await tx.execute(sql`
-        UPDATE room_inventory
-        SET available = available + ${b.quantity}
-        WHERE room_type_id = ${b.roomTypeId}
-          AND date >= ${b.startDate}
-          AND date < ${b.endDate}
-      `);
+    // Only restore unreleased slots (picked-up rooms stay decremented)
+    if (unreleased > 0 && b.roomTypeId) {
+      await incrementInventory(
+        b.roomTypeId,
+        b.startDate,
+        b.endDate,
+        unreleased,
+        tx,
+      );
     }
 
-    return { ok: true };
+    return { ok: true, releasedSlots: unreleased, pickedUp };
   });
 };

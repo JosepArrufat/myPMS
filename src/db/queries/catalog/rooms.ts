@@ -16,6 +16,10 @@ import {
 } from '../../schema/rooms.js';
 import { roomInventory } from '../../schema/roomInventory.js';
 import type { NewRoom, NewRoomType } from '../../schema/rooms.js';
+import {
+  validateAvailability,
+  decrementInventory,
+} from '../../utils.js';
 
 type DbConnection = typeof defaultDb;
 type TxOrDb = DbConnection | PgTransaction<any, any, any>;
@@ -136,32 +140,24 @@ export const getAvailabilityByDay = async (roomTypeId: number, startDate: string
   return out;
 };
 
-export const reserveRoomInventory = async (roomTypeId: number, startDate: string, endDate: string, quantity = 1, db: TxOrDb = defaultDb) => {
+export const reserveRoomInventory = async (
+  roomTypeId: number,
+  startDate: string,
+  endDate: string,
+  quantity = 1,
+  db: TxOrDb = defaultDb,
+  overbookingPercent?: number,
+) => {
   return db.transaction(async (tx) => {
-    const rows = await tx.execute<{ available: number }>(sql`
-      SELECT available FROM room_inventory
-      WHERE room_type_id = ${roomTypeId}
-        AND date >= ${startDate}
-        AND date < ${endDate}
-      FOR UPDATE
-    `);
-    
-    if (!rows || rows.length === 0) {
-      throw new Error('inventory missing for some dates');
-    }
+    await validateAvailability(
+      [{ roomTypeId, quantity }],
+      startDate,
+      endDate,
+      overbookingPercent,
+      tx,
+    )
 
-    const soldOut = rows.some((r: { available: number }) => Number(r.available) < quantity);
-    if (soldOut) {
-      throw new Error('sold out');
-    }
-
-    await tx.execute(sql`
-      UPDATE room_inventory
-      SET available = available - ${quantity}
-      WHERE room_type_id = ${roomTypeId}
-        AND date >= ${startDate}
-        AND date < ${endDate}
-    `);
+    await decrementInventory(roomTypeId, startDate, endDate, quantity, tx)
 
     return { ok: true };
   });

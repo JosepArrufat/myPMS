@@ -5,6 +5,7 @@ import {
 import { db as defaultDb } from '../index.js'
 import { roomInventory } from '../schema/roomInventory.js'
 import { roomTypes } from '../schema/rooms.js'
+import { dateRange } from '../utils.js'
 
 type DbConnection = typeof defaultDb
 
@@ -15,14 +16,7 @@ export const seedInventory = async (
   capacity: number,
   db: DbConnection = defaultDb,
 ) => {
-  const dates: string[] = []
-  const cursor = new Date(startDate)
-  const last = new Date(endDate)
-
-  while (cursor < last) {
-    dates.push(cursor.toISOString().slice(0, 10))
-    cursor.setDate(cursor.getDate() + 1)
-  }
+  const dates = dateRange(startDate, endDate)
 
   const rows = dates.map((d) => ({
     roomTypeId,

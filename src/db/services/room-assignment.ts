@@ -3,27 +3,12 @@ import {
   eq,
 } from 'drizzle-orm'
 
-import type { PgTransaction } from 'drizzle-orm/pg-core'
-
 import { db as defaultDb } from '../index.js'
 import {
   roomAssignments,
   reservationRooms,
 } from '../schema/reservations.js'
-
-type DbConnection = typeof defaultDb
-type TxOrDb = DbConnection | PgTransaction<any, any, any>
-
-const dateRange = (start: string, end: string): string[] => {
-  const dates: string[] = []
-  const cursor = new Date(start)
-  const last = new Date(end)
-  while (cursor < last) {
-    dates.push(cursor.toISOString().slice(0, 10))
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return dates
-}
+import { type TxOrDb, dateRange } from '../utils.js'
 
 export const assignRoom = async (
   reservationId: string,
