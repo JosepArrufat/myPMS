@@ -11,4 +11,4 @@ export * from './reporting';
 export * from './audit';
 export * from './promotions';
 export * from './roomInventory';
-export * from './roomInventory';
+export * from './overbooking';

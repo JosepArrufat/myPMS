@@ -92,6 +92,7 @@ export const reservationRooms = pgTable('reservation_rooms', {
   reservationId: uuid('reservation_id').notNull().references(() => reservations.id, { onDelete: 'cascade' }),
   roomId: integer('room_id').references(() => rooms.id),
   roomTypeId: integer('room_type_id').notNull().references(() => roomTypes.id),
+  blockId: integer('block_id').references(() => roomBlocks.id),
   
   checkInDate: date('check_in_date').notNull(),
   checkOutDate: date('check_out_date').notNull(),
@@ -110,6 +111,7 @@ export const reservationRooms = pgTable('reservation_rooms', {
   reservationRoomsReservationIdx: index('idx_reservation_rooms_reservation').on(table.reservationId),
   reservationRoomsDatesIdx: index('idx_reservation_rooms_dates').on(table.checkInDate, table.checkOutDate),
   reservationRoomsTypeIdx: index('idx_reservation_rooms_type').on(table.roomTypeId),
+  reservationRoomsBlockIdx: index('idx_reservation_rooms_block').on(table.blockId).where(sql`${table.blockId} IS NOT NULL`),
   reservationRoomsAvailabilityIdx: index('idx_reservation_rooms_availability').on(table.roomId, table.checkInDate, table.checkOutDate).where(sql`${table.roomId} IS NOT NULL`),
   reservationRoomsTypeAvailabilityIdx: index('idx_reservation_rooms_type_availability').on(table.roomTypeId, table.checkInDate, table.checkOutDate),
 }));

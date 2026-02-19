@@ -67,6 +67,7 @@ const ALL_TABLES = [
   'room_blocks',
   'housekeeping_tasks',
   'maintenance_requests',
+  'overbooking_policies',
   'room_inventory',
   'room_type_rate_adjustments',
   'room_type_rates',

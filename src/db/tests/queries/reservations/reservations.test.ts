@@ -292,7 +292,7 @@ describe('Reservations - reservations', () => {
             ],
           }],
         }, db),
-      ).rejects.toThrow('sold out');
+      ).rejects.toThrow('Insufficient availability');
     });
 
     it('rolls back the reservation when inventory fails', async () => {
@@ -325,7 +325,7 @@ describe('Reservations - reservations', () => {
             ],
           }],
         }, db),
-      ).rejects.toThrow('sold out');
+      ).rejects.toThrow('Insufficient availability');
 
       // Reservation must NOT exist — the whole transaction rolled back
       const rows = await findReservationByNumber('CR-ROLLBACK', db);
@@ -392,7 +392,7 @@ describe('Reservations - reservations', () => {
       expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
       expect((rejected[0] as PromiseRejectedResult).reason.message).toMatch(
-        /sold out/i,
+        /Insufficient availability/i,
       );
     });
 

@@ -9,3 +9,4 @@ export * from './invoices';
 export * from './housekeeping';
 export * from './promotions';
 export * from './audit';
+export * from './overbooking';

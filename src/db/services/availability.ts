@@ -137,7 +137,6 @@ export const canOverbook = async (
   const avail = await checkAvailability(roomTypeId, checkIn, checkOut, db)
 
   for (const day of avail.dailyAvailability) {
-    // Auto-lookup from policy table when caller didn't specify
     const effectivePct = overbookingPercent
       ?? await lookupOverbookingPercent(roomTypeId, day.date, db)
     const maxAllowed = Math.floor(day.capacity * effectivePct / 100)

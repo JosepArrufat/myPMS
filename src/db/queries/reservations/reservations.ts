@@ -91,6 +91,7 @@ interface CreateReservationInput {
     ratePlanId?: number;
     dailyRates?: Array<{ date: string; rate: string; ratePlanId?: number }>;
   }>;
+  overbookingPercent?: number;
 }
 
 const computeNightlyRates = async (
@@ -145,7 +146,14 @@ export const createReservation = async (input: CreateReservationInput, db: DbCon
       .returning();
 
     for (const room of input.rooms) {
-      await reserveRoomInventory(room.roomTypeId, room.checkInDate, room.checkOutDate, 1, tx);
+      await reserveRoomInventory(
+        room.roomTypeId,
+        room.checkInDate,
+        room.checkOutDate,
+        1,
+        tx,
+        input.overbookingPercent,
+      );
 
       const [reservationRoom] = await tx
         .insert(reservationRooms)

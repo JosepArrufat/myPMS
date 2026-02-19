@@ -34,6 +34,7 @@ export const ratePlans = pgTable('rate_plans', {
   cancellationPolicy: text('cancellation_policy'),
   cancellationDeadlineHours: integer('cancellation_deadline_hours'),
   cancellationFeePercent: decimal('cancellation_fee_percent', { precision: 5, scale: 2 }),
+  isNonRefundable: boolean('is_non_refundable').default(false),
   
   includesBreakfast: boolean('includes_breakfast').default(false),
   includesLunch: boolean('includes_lunch').default(false),

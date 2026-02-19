@@ -173,7 +173,7 @@ describe('Catalog - rooms', () => {
 
       await expect(
         reserveRoomInventory(rt.id, '2026-04-01', '2026-04-03', 1, db),
-      ).rejects.toThrow('inventory missing');
+      ).rejects.toThrow('No inventory row');
     });
 
     it('throws when sold out', async () => {
@@ -187,7 +187,7 @@ describe('Catalog - rooms', () => {
 
       await expect(
         reserveRoomInventory(rt.id, '2026-04-01', '2026-04-02', 1, db),
-      ).rejects.toThrow('sold out');
+      ).rejects.toThrow('Insufficient availability');
     });
   });
 
