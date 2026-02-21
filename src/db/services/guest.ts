@@ -131,7 +131,7 @@ export const getGuestHistory = async (
   )
 
   return {
-    stays: stayHistory,
+    reservations: stayHistory,
     stats: {
       totalStays: completedStays.length,
       totalReservations: stayHistory.length,

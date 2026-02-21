@@ -122,7 +122,7 @@ describe('guest service', () => {
 
       const history = await getGuestHistory(guest.id, db)
 
-      expect(history.stays).toHaveLength(2)
+      expect(history.reservations).toHaveLength(2)
       expect(history.stats.totalStays).toBe(1) // only checked_out counts
       expect(history.stats.totalReservations).toBe(2)
       expect(history.stats.totalSpend).toBe('500.00')

@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsx src/app.ts",
-    "dev": "tsx watch src/app.ts",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "docker:up": "docker compose up -d db db-test",
     "docker:up:db": "docker compose up -d db",
@@ -18,7 +18,8 @@
     "db:push": "drizzle-kit push",
     "db:push:test": "drizzle-kit push --config drizzle.test.config.ts",
     "db:drop": "drizzle-kit drop",
-    "db:seed": "node src/db/seed.js",
+    "db:reset": "npx tsx scripts/reset-db.ts",
+    "db:seed": "npx tsx scripts/seed.ts",
     "test": "vitest run --config src/vitest.config.ts",
     "test:watch": "vitest --config src/vitest.config.ts",
     "test:ui": "vitest --ui --config src/vitest.config.ts",
@@ -29,6 +30,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -43,7 +45,10 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
     "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
     "@vitest/ui": "^1.0.0",

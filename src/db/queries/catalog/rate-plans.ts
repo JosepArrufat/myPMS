@@ -4,6 +4,8 @@ import {
   eq,
   gte,
   lte,
+  isNull,
+  or,
 } from 'drizzle-orm';
 
 import { db as defaultDb } from '../../index.js';
@@ -68,12 +70,14 @@ export const listActiveRatePlans = async (db: DbConnection = defaultDb) =>
     .orderBy(asc(ratePlans.name));
 
 export const listRatePlansForStay = async (checkIn: string, checkOut: string, db: DbConnection = defaultDb) =>
+  // Include active plans that either have a validity range overlapping the stay
+  // OR have NULL validFrom/validTo (treated as always-applicable / generic plans).
   db
     .select()
     .from(ratePlans)
     .where(and(
       eq(ratePlans.isActive, true),
-      lte(ratePlans.validFrom, checkOut),
-      gte(ratePlans.validTo, checkIn),
+      or(isNull(ratePlans.validFrom), lte(ratePlans.validFrom, checkOut)),
+      or(isNull(ratePlans.validTo), gte(ratePlans.validTo, checkIn)),
     ))
     .orderBy(asc(ratePlans.validFrom));

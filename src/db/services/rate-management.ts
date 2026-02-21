@@ -167,6 +167,71 @@ export const createRateAdjustment = async (
   return adjustment
 }
 
+export const updateBaseRateAndPropagate = async (
+  baseRoomTypeId: number,
+  ratePlanId: number,
+  startDate: string,
+  endDate: string,
+  newPrice: string,
+  db: TxOrDb = defaultDb,
+) => {
+  return db.transaction(async (tx) => {
+    const baseRate = await setRoomTypeRate(
+      baseRoomTypeId,
+      ratePlanId,
+      startDate,
+      endDate,
+      newPrice,
+      tx,
+    )
+
+    const adjustments = await tx
+      .select()
+      .from(roomTypeRateAdjustments)
+      .where(eq(roomTypeRateAdjustments.baseRoomTypeId, baseRoomTypeId))
+
+    const derivedRates: Array<{
+      roomTypeId: number
+      price: string
+      adjustmentType: string
+      adjustmentValue: string
+    }> = []
+
+    const base = parseFloat(newPrice)
+
+    for (const adj of adjustments) {
+      const value = parseFloat(String(adj.adjustmentValue))
+      const derived =
+        adj.adjustmentType === 'percent'
+          ? base * (1 + value / 100)
+          : base + value
+
+      const derivedPrice = derived.toFixed(2)
+
+      await setRoomTypeRate(
+        adj.derivedRoomTypeId,
+        ratePlanId,
+        startDate,
+        endDate,
+        derivedPrice,
+        tx,
+      )
+
+      derivedRates.push({
+        roomTypeId: adj.derivedRoomTypeId,
+        price: derivedPrice,
+        adjustmentType: adj.adjustmentType,
+        adjustmentValue: String(adj.adjustmentValue),
+      })
+    }
+
+    return {
+      baseRate,
+      derivedRates,
+    }
+  })
+}
+
 export const getDerivedRate = async (
   baseRoomTypeId: number,
   derivedRoomTypeId: number,
