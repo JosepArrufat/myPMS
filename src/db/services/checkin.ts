@@ -44,10 +44,23 @@ export const canCheckIn = async (
 export const checkInReservation = async (
   reservationId: string,
   roomId: number,
+  guestId: string,
   userId: number,
   db: TxOrDb = defaultDb,
 ) => {
   return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ guestId: reservations.guestId })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId))
+      .limit(1)
+
+    if (!existing) throw new Error('reservation not found')
+
+    if (!existing.guestId && !guestId) {
+      throw new Error('guestId is required at check-in')
+    }
+
     const [room] = await tx
       .update(rooms)
       .set({ status: 'occupied' })
@@ -64,13 +77,19 @@ export const checkInReservation = async (
       throw new Error('room not available or not clean')
     }
 
+    const updateSet: Record<string, any> = {
+      status: 'checked_in',
+      actualCheckInTime: new Date(),
+      modifiedBy: userId,
+    }
+
+    if (guestId && guestId !== existing.guestId) {
+      updateSet.guestId = guestId
+    }
+
     const [reservation] = await tx
       .update(reservations)
-      .set({
-        status: 'checked_in',
-        actualCheckInTime: new Date(),
-        modifiedBy: userId,
-      })
+      .set(updateSet)
       .where(
         and(
           eq(reservations.id, reservationId),

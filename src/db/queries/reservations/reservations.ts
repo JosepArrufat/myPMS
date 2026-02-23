@@ -25,7 +25,21 @@ export const findReservationByNumber = async (reservationNumber: string, db: DbC
     .select()
     .from(reservations)
     .where(eq(reservations.reservationNumber, reservationNumber))
-    .limit(1);
+    .limit(1)
+
+export const findReservationById = async (id: string, db: DbConnection = defaultDb) =>
+  db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, id))
+    .limit(1)
+
+export const findReservation = async (idOrNumber: string, db: DbConnection = defaultDb) => {
+  const [byNumber] = await findReservationByNumber(idOrNumber, db)
+  if (byNumber) return byNumber
+  const [byId] = await findReservationById(idOrNumber, db)
+  return byId ?? null
+}
 
 export const listGuestReservations = async (guestId: string, db: DbConnection = defaultDb) =>
   db
@@ -41,9 +55,10 @@ export const listReservationsForStayWindow = async (from: string, to: string, db
     .where(and(
       lte(reservations.checkInDate, to),
       gte(reservations.checkOutDate, from),
-      sql`${reservations.status} IN ('confirmed', 'checked_in')`,
+      sql`${reservations.status} IN ('pending', 'confirmed', 'checked_in')`,
     ))
-    .orderBy(asc(reservations.checkInDate));
+    .orderBy(asc(reservations.checkInDate))
+  
 
 export const listArrivalsForDate = async (targetDate: string, db: DbConnection = defaultDb) =>
   db

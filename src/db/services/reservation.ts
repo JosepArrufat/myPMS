@@ -10,7 +10,6 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 
 import { db as defaultDb } from '../index.js'
 import { reservations } from '../schema/reservations.js'
-import { roomInventory } from '../schema/roomInventory.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>

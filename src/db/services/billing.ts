@@ -91,6 +91,10 @@ export const generateInvoice = async (
       throw new Error('reservation not found')
     }
 
+    if (!reservation.guestId) {
+      throw new Error('reservation has no guest assigned — cannot generate invoice')
+    }
+
     const rooms = await tx
       .select()
       .from(reservationRooms)

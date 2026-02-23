@@ -143,23 +143,32 @@ describe('Rate management service', () => {
       ])
 
       const updated = await overrideReservationRate(
-        resRoom.id,
+        reservation.id,
         '2026-03-01',
         '2026-03-02',
         '80.00',
         userId,
+        undefined,
         db,
       )
 
-      expect(updated.length).toBe(2)
-      expect(updated[0].rate).toBe('80.00')
-      expect(updated[1].rate).toBe('80.00')
+      expect(updated.dailyRates.length).toBe(2)
+      expect(updated.dailyRates[0].rate).toBe('80.00')
+      expect(updated.dailyRates[1].rate).toBe('80.00')
     })
 
-    it('throws when no daily rates exist for range', async () => {
+    it('throws when no rooms found for reservation', async () => {
       await expect(
-        overrideReservationRate(999, '2026-01-01', '2026-01-02', '80.00', userId, db),
-      ).rejects.toThrow('no daily rates found')
+        overrideReservationRate(
+          '00000000-0000-0000-0000-000000000000',
+          '2026-01-01',
+          '2026-01-02',
+          '80.00',
+          userId,
+          undefined,
+          db,
+        ),
+      ).rejects.toThrow('no rooms found')
     })
   })
 

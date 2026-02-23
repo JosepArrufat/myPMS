@@ -1,6 +1,7 @@
 import {
   and,
   eq,
+  inArray,
   sql,
 } from 'drizzle-orm'
 
@@ -30,6 +31,7 @@ export const createGroupReservation = async (
     source?: string
     specialRequests?: string
     overbookingPercent?: number
+    confirmed?: boolean
     rooms: Array<{
       roomTypeId: number
       adultsCount?: number
@@ -48,11 +50,12 @@ export const createGroupReservation = async (
     const maxOverbookPct = input.overbookingPercent
     const uniqueTypeIds = [...new Set(input.rooms.map((r) => r.roomTypeId))]
     const rtRows = await tx
-      .select({ id: roomTypes.id, maxOccupancy: roomTypes.maxOccupancy })
+      .select({ id: roomTypes.id, maxOccupancy: roomTypes.maxOccupancy, name: roomTypes.name })
       .from(roomTypes)
-      .where(sql`${roomTypes.id} IN ${uniqueTypeIds}`)
+      .where(inArray(roomTypes.id, uniqueTypeIds))
 
     const occupancyByType = new Map(rtRows.map((r) => [r.id, r.maxOccupancy]))
+    const nameByType = new Map(rtRows.map((r) => [r.id, r.name]))
 
     let totalAdults = 0
     let totalChildren = 0
@@ -63,7 +66,36 @@ export const createGroupReservation = async (
       totalChildren += roomSpec.childrenCount ?? 0
     }
 
+    // If the request mixes block rooms with non-block rooms, warn before committing.
+    // Pure block or pure inventory groups proceed without a confirmation step.
+    const hasAnyBlock = input.rooms.some((r) => r.blockId)
     const nonBlockRooms = input.rooms.filter((r) => !r.blockId)
+    const isMixed = hasAnyBlock && nonBlockRooms.length > 0
+
+    if (isMixed && !input.confirmed) {
+      const seen = new Set<string>()
+      const warnings: Array<{
+        roomTypeId: number
+        roomTypeName: string
+        dailyRate: string | undefined
+        message: string
+      }> = []
+      for (const room of nonBlockRooms) {
+        const key = `${room.roomTypeId}:${room.dailyRate ?? ''}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          const roomTypeName = nameByType.get(room.roomTypeId) ?? `Room Type ${room.roomTypeId}`
+          warnings.push({
+            roomTypeId: room.roomTypeId,
+            roomTypeName,
+            dailyRate: room.dailyRate,
+            message: `Room type "${roomTypeName}"${room.dailyRate ? ` at rate ${room.dailyRate}` : ''} is not from the original group block and will be taken from general available inventory.`,
+          })
+        }
+      }
+      return { requiresConfirmation: true as const, warnings }
+    }
+
     if (nonBlockRooms.length > 0) {
       await validateAvailability(
         nonBlockRooms.map((r) => ({ roomTypeId: r.roomTypeId, quantity: 1 })),

@@ -411,7 +411,7 @@ Start with **Option A (CLI)** for immediate testing alongside Postman, then buil
 > 1. Database running: `npm run docker:up:db`
 > 2. Migrations applied: `npm run db:push`
 > 3. Seed data loaded: `npm run db:seed`
-> 4. Server running: `npm run dev` → `http://localhost:8080`
+> 4. Server running: `npm run dev` → `http://localhost:3000`
 
 ---
 
@@ -421,7 +421,7 @@ Create a Postman **Environment** called `myPMS-local` with these variables:
 
 | Variable | Initial Value | Notes |
 |----------|---------------|-------|
-| `base_url` | `http://localhost:8080/api` | All requests use this |
+| `base_url` | `http://localhost:3000/api` | All requests use this |
 | `token` | *(empty)* | Auto-filled by login script |
 
 ---
@@ -905,6 +905,806 @@ if (res.token) {
 
 ---
 
+### 1.7 · Reservations
+
+> **Important**: Before creating reservations make sure you have seeded inventory (`POST /api/inventory/seed-all`) and created at least one guest (`POST /api/guests`). Save the returned `guestId` and a `roomTypeId` from the seed data.
+
+#### Create Reservation
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | see below |
+| Expected | `201` — `{ "reservation": { "id": "...", "reservationNumber": "...", ... } }` |
+
+```json
+{
+  "reservation": {
+    "guestId": "{{guestId}}",
+    "guestNameSnapshot": "John Doe",
+    "checkInDate": "2026-04-01",
+    "checkOutDate": "2026-04-03",
+    "adultsCount": 2,
+    "childrenCount": 0,
+    "status": "pending",
+    "source": "direct",
+    "reservationNumber": "RES-TEST-001"
+  },
+  "rooms": [
+    {
+      "roomTypeId": 1,
+      "checkInDate": "2026-04-01",
+      "checkOutDate": "2026-04-03",
+      "ratePlanId": 1
+    }
+  ]
+}
+```
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.reservation?.id) pm.environment.set("reservationId", res.reservation.id);
+if (res.reservation?.reservationNumber) pm.environment.set("reservationNumber", res.reservation.reservationNumber);
+```
+
+#### Find Reservation by Number
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/{{reservationNumber}}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservation": { ... } }` |
+
+#### Guest Reservations
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/guest/{{guestId}}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservations": [ ... ] }` |
+
+#### Arrivals for Date
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/arrivals/2026-04-01` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "arrivals": [ ... ] }` |
+
+#### Departures for Date
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/departures/2026-04-03` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "departures": [ ... ] }` |
+
+#### Stay Window
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/stay-window?from=2026-04-01&to=2026-04-30` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservations": [ ... ] }` |
+
+#### Reservations by Agency
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/agency/1?from=2026-01-01&to=2026-12-31` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservations": [ ... ] }` |
+
+#### Confirm Reservation
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/confirm` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservation": { "status": "confirmed", ... } }` |
+
+#### Check In
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/check-in` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 1 }` |
+| Expected | `200` — `{ "reservation": { "status": "checked_in", ... }, "room": { "status": "occupied", ... } }` |
+
+> The room must be `available` and not `dirty`. Pick a room that belongs to the correct room type.
+
+#### Check Out
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/check-out` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 1 }` |
+| Expected | `200` — `{ "reservation": { "status": "checked_out", ... }, "task": { "taskType": "checkout_cleaning", ... } }` |
+
+> Checkout automatically creates a housekeeping task and marks the room as `dirty`.
+
+#### Cancel Reservation (create a new one first)
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/cancel` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "reason": "Guest requested cancellation", "cancellationFee": "25.00" }` |
+| Expected | `200` — `{ "reservation": { "status": "cancelled", ... } }` |
+
+#### Mark No-Show
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/no-show` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservation": { "status": "no_show", ... } }` |
+
+#### Get Reservation Status
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/{{reservationId}}/status` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "id": "...", "status": "...", "allowedTransitions": [ ... ] }` |
+
+#### Override Daily Rate
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/rate-override` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "reservationRoomId": 1, "startDate": "2026-04-01", "endDate": "2026-04-02", "newRate": "99.00" }` |
+| Expected | `200` — `{ "dailyRates": [ ... ] }` |
+
+#### Recalculate Total
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/recalculate` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "reservation": { "totalAmount": "...", ... } }` |
+
+---
+
+### 1.8 · Reservation Rooms & Assignments
+
+#### List Rooms for Reservation
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/reservations/{{reservationId}}/rooms` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "rooms": [ { "roomTypeId": ..., "roomId": ..., ... } ] }` |
+
+#### Assign Room
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/reservations/{{reservationId}}/assign-room` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 1, "checkInDate": "2026-04-01", "checkOutDate": "2026-04-03" }` |
+| Expected | `201` — `{ "assignments": [ ... ] }` |
+
+#### Unassign Room
+
+| | |
+|---|---|
+| **DELETE** | `{{base_url}}/reservations/{{reservationId}}/unassign-room` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 1, "checkInDate": "2026-04-01", "checkOutDate": "2026-04-03" }` |
+| Expected | `200` — `{ "ok": true }` |
+
+#### Assignments for Date
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/room-assignments/2026-04-01` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "assignments": [ ... ] }` |
+
+#### Check Room Conflicts
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/room-conflicts?roomId=1&from=2026-04-01&to=2026-04-05` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "conflicts": [ ... ] }` |
+
+---
+
+### 1.9 · Group Reservations & Blocks
+
+#### Create Group Block (do this first)
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/blocks` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomTypeId": 1, "startDate": "2026-05-01", "endDate": "2026-05-05", "quantity": 5, "reason": "Wedding group" }` |
+| Expected | `201` — `{ "block": { "id": ..., "blockType": "group_hold", ... } }` |
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.block?.id) pm.environment.set("blockId", res.block.id);
+```
+
+#### Create Group Reservation
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/groups` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | see below |
+| Expected | `201` — `{ "reservation": { ... }, "rooms": [ ... ] }` |
+
+```json
+{
+  "contactGuestId": "{{guestId}}",
+  "groupName": "Smith Wedding Party",
+  "checkInDate": "2026-05-01",
+  "checkOutDate": "2026-05-05",
+  "rooms": [
+    { "roomTypeId": 1, "blockId": {{blockId}}, "dailyRate": "120.00" },
+    { "roomTypeId": 1, "blockId": {{blockId}}, "dailyRate": "120.00" },
+    { "roomTypeId": 2, "dailyRate": "180.00" }
+  ]
+}
+```
+
+> Rooms referencing a `blockId` consume from the block's allocation instead of general inventory. The third room (no blockId) deducts from general inventory.
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.reservation?.id) pm.environment.set("groupReservationId", res.reservation.id);
+```
+
+#### Rooming List
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/groups/{{groupReservationId}}/rooming-list` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "rooms": [ { "roomTypeName": "Standard", "roomId": null, ... } ] }` |
+
+#### Block Pickup
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/blocks/{{blockId}}/pickup` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "block": { ... }, "pickedUp": 2, "total": 5, "remaining": 3 }` |
+
+#### Active Blocks in Range
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/blocks/active?from=2026-05-01&to=2026-05-31` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "blocks": [ ... ] }` |
+
+#### Release Block
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/blocks/{{blockId}}/release` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "id": ..., "releasedAt": "...", "releasedSlots": 3, "pickedUp": 2 }` |
+
+> Releasing a block returns unused inventory back to the general pool.
+
+---
+
+### 1.10 · Billing & Invoices
+
+> **Prerequisite**: Have a reservation that has been checked out. Use its `reservationId`.
+
+#### Generate Invoice from Reservation
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/invoices/generate` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "reservationId": "{{reservationId}}" }` |
+| Expected | `201` — `{ "invoice": { "id": "...", "invoiceNumber": "INV-...", "status": "issued", ... } }` |
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.invoice?.id) pm.environment.set("invoiceId", res.invoice.id);
+if (res.invoice?.invoiceNumber) pm.environment.set("invoiceNumber", res.invoice.invoiceNumber);
+```
+
+#### Find Invoice by Number
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/invoices/{{invoiceNumber}}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "invoice": { ... }, "items": [ ... ], "payments": [ ... ] }` |
+
+#### Guest Invoices
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/invoices/guest/{{guestId}}?from=2026-01-01` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "invoices": [ ... ] }` |
+
+#### Outstanding Invoices
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/invoices/outstanding` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "invoices": [ ... ] }` |
+
+#### Overdue Invoices
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/invoices/overdue` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "invoices": [ ... ] }` |
+
+#### Search Invoices
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/invoices/search?q=INV` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "invoices": [ ... ] }` |
+
+#### Add Charge to Invoice
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/invoices/{{invoiceId}}/charge` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "itemType": "minibar", "description": "Minibar - 2 bottles water", "unitPrice": "8.00", "quantity": "2" }` |
+| Expected | `201` — `{ "item": { ... } }` |
+
+#### Remove Charge
+
+| | |
+|---|---|
+| **DELETE** | `{{base_url}}/invoices/items/{itemId}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "item": { ... } }` |
+
+> Get the `itemId` from the invoice detail or add-charge response.
+
+#### Record Payment
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/invoices/{{invoiceId}}/payment` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "amount": "250.00", "paymentMethod": "credit_card", "transactionReference": "CC-TX-12345" }` |
+| Expected | `201` — `{ "payment": { ... } }` |
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.payment?.id) pm.environment.set("paymentId", res.payment.id);
+```
+
+#### Process Refund
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/invoices/{{invoiceId}}/refund` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "originalPaymentId": {{paymentId}}, "amount": "50.00", "reason": "Overcharge correction" }` |
+| Expected | `200` — `{ "refund": { "isRefund": true, ... } }` |
+
+---
+
+### 1.11 · Folio
+
+#### Post Charge to Folio
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/folios/{{invoiceId}}/charge` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "itemType": "room_service", "description": "Room service - dinner", "unitPrice": "45.00" }` |
+| Expected | `201` — `{ "item": { ... } }` |
+
+#### Get Folio Balance
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/folios/{{invoiceId}}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "invoice": { "balance": "...", ... }, "charges": [ ... ], "payments": [ ... ] }` |
+
+#### Transfer Charge Between Folios
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/folios/transfer` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "invoiceItemId": 1, "targetInvoiceId": "{{otherInvoiceId}}" }` |
+| Expected | `200` — `{ "sourceInvoiceId": "...", "targetInvoiceId": "...", "item": { ... } }` |
+
+> You need two invoices. Generate a second one from another reservation, or split first.
+
+#### Split Folio
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/folios/{{invoiceId}}/split` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "invoiceItemIds": [2, 3] }` |
+| Expected | `200` — `{ "sourceInvoice": { ... }, "newInvoice": { "invoiceNumber": "INV-SPLIT-...", ... } }` |
+
+> Pass the IDs of specific charges you want to move to a new invoice.
+
+---
+
+### 1.12 · Deposits
+
+#### Collect Deposit
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/deposits/collect` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "reservationId": "{{reservationId}}", "amount": "100.00", "paymentMethod": "credit_card", "transactionReference": "DEP-CC-001" }` |
+| Expected | `201` — `{ "payment": { ... }, "depositInvoiceId": "...", "totalDeposit": "100.00" }` |
+
+#### Deposit History
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/deposits/{{reservationId}}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "deposits": [ ... ], "refunds": [ ... ], "totalDeposited": "100.00", "totalRefunded": "0.00", "netDeposit": "100.00" }` |
+
+#### Apply Deposit to Final Invoice
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/deposits/apply` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "reservationId": "{{reservationId}}", "finalInvoiceId": "{{invoiceId}}" }` |
+| Expected | `200` — `{ "appliedAmount": "100.00", "payment": { ... } }` |
+
+#### Refund Deposit
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/deposits/refund` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "reservationId": "{{reservationId}}", "reason": "Reservation cancelled" }` |
+| Expected | `200` — `{ "refunds": [ ... ], "totalRefunded": "100.00" }` |
+
+---
+
+### 1.13 · Housekeeping
+
+#### Create Task
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/housekeeping/tasks` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 1, "taskDate": "2026-04-01", "taskType": "checkout_cleaning", "priority": 1 }` |
+| Expected | `201` — `{ "task": { "id": ..., "status": "pending", ... } }` |
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.task?.id) pm.environment.set("taskId", res.task.id);
+```
+
+#### Assign Task
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/housekeeping/tasks/{{taskId}}/assign` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "assigneeId": 5 }` |
+| Expected | `200` — `{ "task": { "status": "assigned", "assignedTo": 5, ... } }` |
+
+> Use a user ID with the `housekeeping` role from the seed data.
+
+#### Start Task
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/housekeeping/tasks/{{taskId}}/start` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "task": { "status": "in_progress", "startedAt": "...", ... } }` |
+
+#### Complete Task
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/housekeeping/tasks/{{taskId}}/complete` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "task": { "status": "completed", "completedAt": "...", ... } }` |
+
+#### Inspect Room (after task completed)
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/housekeeping/inspect/{{taskId}}` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "task": { "status": "inspected", "inspectedBy": ..., ... } }` |
+
+> Inspection also marks the room's cleanliness status as `inspected`.
+
+#### Generate Daily Task Board
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/housekeeping/daily-board` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "taskDate": "2026-04-01" }` |
+| Expected | `201` — `{ "tasks": [ ... ], "count": 5 }` |
+
+> Automatically creates pending tasks for all rooms with `dirty` cleanliness status.
+
+#### Tasks for Date
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/housekeeping/tasks/date/2026-04-01` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "tasks": [ ... ] }` |
+
+#### Tasks for Room
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/housekeeping/tasks/room/1?from=2026-04-01&to=2026-04-30` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "tasks": [ ... ] }` |
+
+#### Tasks for Assignee
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/housekeeping/tasks/assignee/5?from=2026-04-01&to=2026-04-30` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "tasks": [ ... ] }` |
+
+---
+
+### 1.14 · Maintenance
+
+#### Create Maintenance Request
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/maintenance` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 5, "category": "plumbing", "priority": "urgent", "description": "Leaking faucet in bathroom" }` |
+| Expected | `201` — `{ "request": { "id": ..., "status": "open", ... } }` |
+
+**Post-response script:**
+```js
+const res = pm.response.json();
+if (res.request?.id) pm.environment.set("maintenanceId", res.request.id);
+```
+
+#### Assign Maintenance Request
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/maintenance/{{maintenanceId}}/assign` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "assigneeId": 6 }` |
+| Expected | `200` — `{ "request": { "status": "in_progress", "assignedTo": 6, ... } }` |
+
+#### Complete Maintenance Request
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/maintenance/{{maintenanceId}}/complete` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "resolutionNotes": "Replaced faucet cartridge", "cost": "85.00" }` |
+| Expected | `200` — `{ "request": { "status": "completed", "completedAt": "...", ... } }` |
+
+#### Put Room Out of Order
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/maintenance/out-of-order` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 10, "startDate": "2026-04-05", "endDate": "2026-04-10", "reason": "Full bathroom renovation" }` |
+| Expected | `201` — `{ "block": { "blockType": "maintenance", ... } }` |
+
+> This marks the room as `out_of_order` and creates a maintenance block.
+
+#### Return Room to Service
+
+| | |
+|---|---|
+| **POST** | `{{base_url}}/maintenance/return-to-service` |
+| Auth | Bearer Token → `{{token}}` |
+| Body (JSON) | `{ "roomId": 10 }` |
+| Expected | `200` — `{ "ok": true, "roomId": 10 }` |
+
+> Room status returns to `available` (with `dirty` cleanliness) and the maintenance block is released.
+
+#### List Open Requests
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/maintenance/open` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "requests": [ ... ] }` |
+
+#### List Scheduled Requests
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/maintenance/scheduled?from=2026-04-01` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "requests": [ ... ] }` |
+
+#### List Urgent Open Requests
+
+| | |
+|---|---|
+| **GET** | `{{base_url}}/maintenance/urgent` |
+| Auth | Bearer Token → `{{token}}` |
+| Expected | `200` — `{ "requests": [ ... ] }` |
+
+---
+
+### Recommended Test Flow (1.7 – 1.14)
+
+Run these requests in order to test the full reservation-to-checkout-to-payment lifecycle:
+
+| Step | Request | What it proves |
+|------|---------|----------------|
+| 1 | `POST /api/reservations` | Creates reservation, deducts inventory |
+| 2 | `POST /api/reservations/:id/confirm` | Status → confirmed |
+| 3 | `POST /api/reservations/:id/assign-room` | Room assignment created |
+| 4 | `POST /api/deposits/collect` | Deposit recorded, linked to reservation |
+| 5 | `POST /api/reservations/:id/check-in` | Status → checked_in, room → occupied |
+| 6 | `POST /api/invoices/generate` | Invoice with room-night line items |
+| 7 | `POST /api/invoices/:id/charge` | Extra charge added (minibar, etc.) |
+| 8 | `POST /api/deposits/apply` | Deposit applied as payment on final invoice |
+| 9 | `POST /api/invoices/:id/payment` | Remaining balance paid |
+| 10 | `POST /api/reservations/:id/check-out` | Status → checked_out, room → dirty, housekeeping task created |
+| 11 | `POST /api/housekeeping/tasks/:id/assign` | Housekeeping workflow begins |
+| 12 | `POST /api/housekeeping/tasks/:id/start` → `complete` → `inspect` | Room → inspected |
+| 13 | `GET /api/folios/:invoiceId` | Final folio balanced at $0 |
+
+---
+
+### Rate Propagation — Deep Dive
+
+#### What is Rate Propagation?
+
+Rate propagation is an automated pricing mechanism that lets you set a **single base rate** for one room type and have all related room types automatically receive calculated prices based on pre-defined adjustment rules.
+
+When you call `POST /api/room-type-rates/propagate`, the system:
+
+1. **Sets the base rate** for the specified room type + rate plan + date range
+2. **Looks up all adjustment rules** where this room type is the `baseRoomTypeId`
+3. **Calculates derived prices** for each linked room type using the adjustment formula
+4. **Inserts rate records** for every derived room type in a single transaction
+
+#### How it Works (Step by Step)
+
+```
+1. You call:
+   POST /api/room-type-rates/propagate
+   {
+     "baseRoomTypeId": 1,      ← Standard room
+     "ratePlanId": 1,           ← Rack rate
+     "startDate": "2026-04-01",
+     "endDate": "2026-04-30",
+     "newPrice": "100.00"
+   }
+
+2. System inserts: room_type_rates(roomTypeId=1, price=100.00, ...)
+
+3. System queries room_type_rate_adjustments WHERE baseRoomTypeId = 1
+   Finds:
+     - derivedRoomTypeId=2 (Superior), adjustmentType='percent', adjustmentValue='25'
+     - derivedRoomTypeId=3 (Deluxe),   adjustmentType='percent', adjustmentValue='60'
+     - derivedRoomTypeId=4 (Suite),     adjustmentType='amount',  adjustmentValue='150'
+
+4. System calculates:
+     Superior: 100.00 × (1 + 25/100) = 125.00
+     Deluxe:   100.00 × (1 + 60/100) = 160.00
+     Suite:    100.00 + 150.00        = 250.00
+
+5. System inserts rate records for each derived type
+
+6. Returns:
+   {
+     "baseRate": { "roomTypeId": 1, "price": "100.00", ... },
+     "derivedRates": [
+       { "roomTypeId": 2, "price": "125.00", "adjustmentType": "percent", "adjustmentValue": "25" },
+       { "roomTypeId": 3, "price": "160.00", "adjustmentType": "percent", "adjustmentValue": "60" },
+       { "roomTypeId": 4, "price": "250.00", "adjustmentType": "amount",  "adjustmentValue": "150" }
+     ]
+   }
+```
+
+#### Adjustment Types
+
+| Type | Formula | Example |
+|------|---------|---------|
+| `percent` | `basePrice × (1 + value/100)` | Base $100, value 25 → $125 |
+| `amount` | `basePrice + value` | Base $100, value 150 → $250 |
+
+#### Real Business Use Cases
+
+**1. Seasonal Rate Changes**
+
+A revenue manager needs to update prices for high season (July–August). Instead of manually updating 6 room types × 1 rate plan = 6 records, they update the Standard room and everything propagates:
+
+```
+Before: Standard $120, Superior $150, Deluxe $192, Suite $270
+Action: Propagate Standard = $150 for July 1–Aug 31
+After:  Standard $150, Superior $187.50, Deluxe $240, Suite $300
+```
+
+**Time saved**: 1 API call instead of 6. No risk of forgetting a room type.
+
+**2. Flash Sales / Promotions**
+
+Marketing wants a 3-day flash sale with 20% off. The manager creates a new rate plan "FLASH" and propagates a discounted base rate. All room types get proportionally discounted prices while maintaining their relative positioning.
+
+**3. Multi-Property Chains**
+
+A hotel chain sets base rates at corporate level. Each property defines adjustments for their local room types relative to the chain's "Standard" baseline. Corporate pushes one rate change and all properties' derived rates update consistently.
+
+**4. OTA (Online Travel Agency) Rate Parity**
+
+Different rate plans (Rack, OTA, Corporate, Government) often have the same proportional structure across room types. Propagation ensures that when OTA rates change, all room type variants update together, maintaining parity.
+
+**5. Weekend / Weekday Pricing**
+
+Revenue manager defines weekday base rate, then uses propagation for weekend premium:
+- Create adjustment rule: `baseRoomTypeId=Standard, derivedRoomTypeId=Standard-Weekend, type=percent, value=15`
+- Propagate weekday rate → weekend automatically gets 15% more
+- Works across all room types simultaneously
+
+**6. Group/Conference Pricing**
+
+Sales team negotiates a group rate that is 10% below rack. Rather than calculating each room type manually, they propagate a base group rate and the system calculates correct prices for every room type the group might book.
+
+#### Setup Postman Flow
+
+1. **Create adjustment rules** (one-time setup):
+   ```
+   POST /api/rate-adjustments { baseRoomTypeId: 1, derivedRoomTypeId: 2, adjustmentType: "percent", adjustmentValue: "25" }
+   POST /api/rate-adjustments { baseRoomTypeId: 1, derivedRoomTypeId: 3, adjustmentType: "percent", adjustmentValue: "60" }
+   POST /api/rate-adjustments { baseRoomTypeId: 1, derivedRoomTypeId: 4, adjustmentType: "amount",  adjustmentValue: "150" }
+   ```
+
+2. **Propagate a rate**:
+   ```
+   POST /api/room-type-rates/propagate { baseRoomTypeId: 1, ratePlanId: 1, startDate: "2026-04-01", endDate: "2026-04-30", newPrice: "100.00" }
+   ```
+
+3. **Verify derived rates**:
+   ```
+   GET /api/room-type-rates/effective?roomTypeId=2&ratePlanId=1&date=2026-04-15
+   → { "price": "125.00", "source": "rate_plan" }
+
+   GET /api/room-type-rates/derived?baseRoomTypeId=1&derivedRoomTypeId=3&ratePlanId=1&date=2026-04-15
+   → { "price": "160.00", "source": "derived", "basePrice": "100.00", "adjustment": { "type": "percent", "value": "60" } }
+   ```
+
+---
+
 ### Error Responses to Verify
 
 Test these scenarios to confirm error handling works:
@@ -917,8 +1717,9 @@ Test these scenarios to confirm error handling works:
 | `GET /api/room-types/99999` | `404` — `{ "error": "Room type not found" }` |
 | `POST /api/auth/login` with wrong password | `401` — `{ "error": "Invalid credentials" }` |
 | `POST /api/room-types` with no body | `400` — DB constraint error |
-
----
+| Duplicate room number | `409` — `{ "error": "room with room_number '501' already exists" }` |
+| Cancel already checked-out reservation | `500` — `"reservation not found or cannot be cancelled"` |
+| Check in dirty room | `500` — `"room not available or not clean"` |
 
 ### Postman Tips
 

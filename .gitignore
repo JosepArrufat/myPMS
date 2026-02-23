@@ -16,6 +16,9 @@ QUICKREF.md
 # Drizzle migrations output (if you want to ignore generated SQL snapshots)
 src/db/migrations/
 
+# Local test scripts
+scripts/smoke-test.ts
+
 # OS files
 .DS_Store
 Thumbs.db

@@ -34,6 +34,7 @@ export const collectDeposit = async (
       .limit(1)
 
     if (!reservation) throw new Error('reservation not found')
+    if (!reservation.guestId) throw new Error('reservation has no guest assigned — cannot create deposit')
 
     let [depositInvoice] = await tx
       .select()

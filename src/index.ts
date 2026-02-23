@@ -13,6 +13,11 @@ import { ratePlanRouter, ratesRouter, adjustmentsRouter } from './routes/ratePla
 import { availabilityRouter, inventoryRouter, roomAvailabilityRouter } from './routes/availability.js';
 import guestsRouter from './routes/guests.js';
 import agenciesRouter from './routes/agencies.js';
+import reservationsRouter, { roomAssignmentsRouter, roomConflictsRouter } from './routes/reservations.js';
+import { groupsRouter, blocksRouter } from './routes/groups.js';
+import { invoicesRouter, foliosRouter, depositsRouter } from './routes/invoices.js';
+import housekeepingRouter from './routes/housekeeping.js';
+import maintenanceRouter from './routes/maintenance.js';
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
@@ -37,6 +42,16 @@ app.use('/api/availability', availabilityRouter);
 app.use('/api/inventory', inventoryRouter);        
 app.use('/api/guests', guestsRouter);            
 app.use('/api/agencies', agenciesRouter);          
+app.use('/api/reservations', reservationsRouter);  
+app.use('/api/room-assignments', roomAssignmentsRouter);
+app.use('/api/room-conflicts', roomConflictsRouter);
+app.use('/api/groups', groupsRouter);              
+app.use('/api/blocks', blocksRouter);              
+app.use('/api/invoices', invoicesRouter);          
+app.use('/api/folios', foliosRouter);              
+app.use('/api/deposits', depositsRouter);          
+app.use('/api/housekeeping', housekeepingRouter);  
+app.use('/api/maintenance', maintenanceRouter);    
 
 app.use(middlewareError);
 

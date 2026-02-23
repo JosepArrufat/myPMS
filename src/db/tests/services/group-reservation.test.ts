@@ -71,11 +71,11 @@ describe('group reservation service', () => {
         db,
       )
 
-      expect(result.rooms).toHaveLength(3)
-      expect(result.reservation.status).toBe('pending')
-      expect(result.reservation.guestNameSnapshot).toBe('Acme Corp Annual Retreat')
-        expect(result.reservation.adultsCount).toBe(6)
-        expect(result.reservation.totalAmount).toBe('1200.00')
+      expect((result as any).rooms).toHaveLength(3)
+      expect((result as any).reservation.status).toBe('pending')
+      expect((result as any).reservation.guestNameSnapshot).toBe('Acme Corp Annual Retreat')
+        expect((result as any).reservation.adultsCount).toBe(6)
+        expect((result as any).reservation.totalAmount).toBe('1200.00')
     })
 
     it('defaults adultsCount to room type maxOccupancy when not specified', async () => {
@@ -109,7 +109,7 @@ describe('group reservation service', () => {
       )
 
       
-      expect(result.reservation.adultsCount).toBe(8)
+      expect((result as any).reservation.adultsCount).toBe(8)
     })
 
     it('rejects when availability is insufficient', async () => {
@@ -176,6 +176,105 @@ describe('group reservation service', () => {
 
       expect(result.rooms).toHaveLength(1)
     })
+
+    it('returns requiresConfirmation + warnings when mixing block and non-block rooms', async () => {
+      const user = await createTestUser(db)
+      const guest = await createTestGuest(db)
+      const rt1 = await createTestRoomType(db, { name: 'Standard', code: 'WARN_STD' })
+      const rt2 = await createTestRoomType(db, { name: 'Deluxe', code: 'WARN_DLX' })
+
+      const startDate = dateHelpers.daysFromNow(60)
+      const endDate = dateHelpers.daysFromNow(63)
+
+      for (let i = 60; i < 63; i++) {
+        await createTestRoomInventory(db, {
+          roomTypeId: rt1.id,
+          date: dateHelpers.daysFromNow(i),
+          capacity: 10,
+          available: 10,
+        })
+        await createTestRoomInventory(db, {
+          roomTypeId: rt2.id,
+          date: dateHelpers.daysFromNow(i),
+          capacity: 5,
+          available: 5,
+        })
+      }
+
+      const block = await createGroupBlock(rt1.id, startDate, endDate, 5, 'Test Block', user.id, db)
+
+      const result = await createGroupReservation(
+        {
+          contactGuestId: guest.id,
+          groupName: 'Mixed Group',
+          checkInDate: startDate,
+          checkOutDate: endDate,
+          rooms: [
+            { roomTypeId: rt1.id, blockId: block.id, dailyRate: '100.00' },
+            { roomTypeId: rt2.id, dailyRate: '180.00' }, // no blockId — from inventory
+          ],
+        },
+        user.id,
+        db,
+      )
+
+      expect(result).toHaveProperty('requiresConfirmation', true)
+      if ('warnings' in result) {
+        expect(result.warnings).toHaveLength(1)
+        expect((result.warnings as any[])[0].roomTypeId).toBe(rt2.id)
+        expect((result.warnings as any[])[0].roomTypeName).toBe('Deluxe')
+        expect((result.warnings as any[])[0].message).toContain('general available inventory')
+      }
+    })
+
+    it('proceeds and creates the reservation when confirmed:true on mixed rooms', async () => {
+      const user = await createTestUser(db)
+      const guest = await createTestGuest(db)
+      const rt1 = await createTestRoomType(db, { name: 'Standard', code: 'CONF2_STD' })
+      const rt2 = await createTestRoomType(db, { name: 'Deluxe', code: 'CONF2_DLX' })
+
+      const startDate = dateHelpers.daysFromNow(70)
+      const endDate = dateHelpers.daysFromNow(72)
+
+      for (let i = 70; i < 72; i++) {
+        await createTestRoomInventory(db, {
+          roomTypeId: rt1.id,
+          date: dateHelpers.daysFromNow(i),
+          capacity: 10,
+          available: 10,
+        })
+        await createTestRoomInventory(db, {
+          roomTypeId: rt2.id,
+          date: dateHelpers.daysFromNow(i),
+          capacity: 5,
+          available: 5,
+        })
+      }
+
+      const block = await createGroupBlock(rt1.id, startDate, endDate, 5, 'Conf Block', user.id, db)
+
+      const result = await createGroupReservation(
+        {
+          contactGuestId: guest.id,
+          groupName: 'Confirmed Mixed Group',
+          checkInDate: startDate,
+          checkOutDate: endDate,
+          confirmed: true,
+          rooms: [
+            { roomTypeId: rt1.id, blockId: block.id, dailyRate: '100.00' },
+            { roomTypeId: rt2.id, dailyRate: '180.00' },
+          ],
+        },
+        user.id,
+        db,
+      )
+
+      expect('reservation' in result).toBe(true)
+      if ('reservation' in result) {
+        expect((result as any).rooms).toHaveLength(2)
+        expect((result as any).reservation.status).toBe('pending')
+      }
+    })
   })
 
   describe('getGroupRoomingList', () => {
@@ -211,7 +310,7 @@ describe('group reservation service', () => {
         db,
       )
 
-      const roomingList = await getGroupRoomingList(result.reservation.id, db)
+      const roomingList = await getGroupRoomingList((result as any).reservation.id, db)
       expect(roomingList).toHaveLength(2)
       expect(roomingList[0].roomTypeName).toBeTruthy()
       expect(roomingList[0].roomTypeCode).toBeTruthy()

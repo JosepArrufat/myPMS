@@ -77,34 +77,67 @@ export const getEffectiveRate = async (
 }
 
 export const overrideReservationRate = async (
-  reservationRoomId: number,
+  reservationId: string,
   startDate: string,
   endDate: string,
   newRate: string,
   userId: number,
+  reservationRoomId?: number,
   db: TxOrDb = defaultDb,
 ) => {
   return db.transaction(async (tx) => {
-    const updated = await tx
-      .update(reservationDailyRates)
-      .set({
-        rate: newRate,
-        modifiedBy: userId,
-      })
-      .where(
-        and(
-          eq(reservationDailyRates.reservationRoomId, reservationRoomId),
-          gte(reservationDailyRates.date, startDate),
-          lte(reservationDailyRates.date, endDate),
-        ),
-      )
-      .returning()
+    const targetRooms = reservationRoomId
+      ? [{ id: reservationRoomId }]
+      : await tx
+          .select({ id: reservationRooms.id })
+          .from(reservationRooms)
+          .where(eq(reservationRooms.reservationId, reservationId))
 
-    if (updated.length === 0) {
+    if (targetRooms.length === 0) {
+      throw new Error('no rooms found for this reservation')
+    }
+
+    const allUpdated = []
+    for (const room of targetRooms) {
+      const rows = await tx
+        .update(reservationDailyRates)
+        .set({ rate: newRate, modifiedBy: userId })
+        .where(
+          and(
+            eq(reservationDailyRates.reservationRoomId, room.id),
+            gte(reservationDailyRates.date, startDate),
+            lte(reservationDailyRates.date, endDate),
+          ),
+        )
+        .returning()
+      allUpdated.push(...rows)
+    }
+
+    if (allUpdated.length === 0) {
       throw new Error('no daily rates found for the given range')
     }
 
-    return updated
+    const allRooms = await tx
+      .select({ id: reservationRooms.id })
+      .from(reservationRooms)
+      .where(eq(reservationRooms.reservationId, reservationId))
+
+    let total = 0
+    for (const room of allRooms) {
+      const rates = await tx
+        .select({ rate: reservationDailyRates.rate })
+        .from(reservationDailyRates)
+        .where(eq(reservationDailyRates.reservationRoomId, room.id))
+      total += rates.reduce((sum, r) => sum + parseFloat(String(r.rate)), 0)
+    }
+
+    const [reservation] = await tx
+      .update(reservations)
+      .set({ totalAmount: total.toFixed(2), modifiedBy: userId })
+      .where(eq(reservations.id, reservationId))
+      .returning()
+
+    return { dailyRates: allUpdated, reservation }
   })
 }
 

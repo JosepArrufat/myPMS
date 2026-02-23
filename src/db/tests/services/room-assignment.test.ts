@@ -69,8 +69,6 @@ describe('Room assignment services', () => {
       const assignments = await assignRoom(
         reservation.id,
         room.id,
-        '2026-05-01',
-        '2026-05-04',
         userId,
         db,
       )
@@ -103,8 +101,6 @@ describe('Room assignment services', () => {
       await assignRoom(
         reservation.id,
         room.id,
-        '2026-06-01',
-        '2026-06-03',
         userId,
         db,
       )
@@ -138,8 +134,6 @@ describe('Room assignment services', () => {
       await assignRoom(
         res1.id,
         room.id,
-        '2026-07-01',
-        '2026-07-03',
         userId,
         db,
       )
@@ -157,7 +151,7 @@ describe('Room assignment services', () => {
       })
 
       await expect(
-        assignRoom(res2.id, room.id, '2026-07-02', '2026-07-04', userId, db),
+        assignRoom(res2.id, room.id, userId, db),
       ).rejects.toThrow()
     })
   })
@@ -183,8 +177,6 @@ describe('Room assignment services', () => {
       await assignRoom(
         reservation.id,
         room.id,
-        '2026-08-01',
-        '2026-08-03',
         userId,
         db,
       )
@@ -192,8 +184,6 @@ describe('Room assignment services', () => {
       await unassignRoom(
         reservation.id,
         room.id,
-        '2026-08-01',
-        '2026-08-03',
         db,
       )
 

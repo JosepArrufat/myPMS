@@ -8,11 +8,9 @@ import {
   decimal,
   date,
   timestamp,
-  boolean,
   pgEnum,
   index,
   uniqueIndex,
-  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { guests } from './guests';
 import { agencies } from './agencies';
@@ -42,8 +40,8 @@ export const reservations = pgTable('reservations', {
   id: uuid('id').primaryKey().defaultRandom(),
   reservationNumber: varchar('reservation_number', { length: 50 }).notNull().unique(),
   
-  guestId: uuid('guest_id').notNull().references(() => guests.id),
-  guestNameSnapshot: varchar('guest_name_snapshot', { length: 255 }).notNull(),
+  guestId: uuid('guest_id').references(() => guests.id),
+  guestNameSnapshot: varchar('guest_name_snapshot', { length: 255 }),
   guestEmailSnapshot: varchar('guest_email_snapshot', { length: 255 }),
   
   checkInDate: date('check_in_date').notNull(),

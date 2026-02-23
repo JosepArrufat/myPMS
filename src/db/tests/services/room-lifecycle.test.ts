@@ -184,6 +184,7 @@ describe('Room lifecycle services', () => {
       const result = await checkInReservation(
         reservation.id,
         room.id,
+        guestId,
         userId,
         db,
       )
@@ -204,7 +205,7 @@ describe('Room lifecycle services', () => {
       })
 
       await expect(
-        checkInReservation(reservation.id, room.id, userId, db),
+        checkInReservation(reservation.id, room.id, guestId, userId, db),
       ).rejects.toThrow('not available or not clean')
     })
 
@@ -219,7 +220,7 @@ describe('Room lifecycle services', () => {
       })
 
       await expect(
-        checkInReservation(reservation.id, room.id, userId, db),
+        checkInReservation(reservation.id, room.id, guestId, userId, db),
       ).rejects.toThrow('not found or not confirmed')
     })
 
@@ -231,7 +232,7 @@ describe('Room lifecycle services', () => {
       const fakeId = '00000000-0000-0000-0000-000000000000'
 
       await expect(
-        checkInReservation(fakeId, room.id, userId, db),
+        checkInReservation(fakeId, room.id, guestId, userId, db),
       ).rejects.toThrow()
 
       const [unchangedRoom] = await db
@@ -311,6 +312,7 @@ describe('Room lifecycle services', () => {
       const checkInResult = await checkInReservation(
         reservation.id,
         room.id,
+        guestId,
         userId,
         db,
       )

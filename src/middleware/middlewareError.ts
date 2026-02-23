@@ -58,10 +58,16 @@ export const middlewareError: MiddlewareError = (err, req, res, next) => {
         res.status(400).json({ error: `${message} (code ${pgCode})` });
 
     } else {
-        // Business logic errors thrown as plain Error
         const msg: string = (err as any)?.message || '';
+
+        // Inventory / availability conflicts → 409
         if (msg.includes('No inventory row') || msg.includes('Insufficient availability') || msg.includes('slot(s)')) {
             return res.status(409).json({ error: msg });
+        }
+
+        // Known service-layer errors (thrown as plain Error) → 400
+        if (msg) {
+            return res.status(400).json({ error: msg });
         }
 
         res.status(500).json({ error: 'Something went wrong on our end' });

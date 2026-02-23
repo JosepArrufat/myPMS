@@ -19,6 +19,7 @@ import {
   invoiceItems,
 } from '../schema/invoices.js'
 import { trimExpiredPolicies } from '../queries/catalog/overbooking-policies.js'
+import { advanceBusinessDate } from './business-date.js'
 
 type InvoiceItemType = (typeof invoiceItemTypeEnum.enumValues)[number]
 type DbConnection = typeof defaultDb
@@ -81,6 +82,7 @@ export const postDailyRoomCharges = async (
         .limit(1)
 
       if (!invoice) {
+        if (!reservation.guestId) continue
         const timestamp = Date.now()
         ;[invoice] = await tx
           .insert(invoices)
@@ -354,9 +356,11 @@ export const runNightAudit = async (
   const report = await generateDailyRevenueReport(businessDate, db)
   const discrepancies = await flagDiscrepancies(businessDate, db)
   const overbookingTrim = await trimExpiredPolicies(businessDate, db as any)
+  const newBusinessDate = await advanceBusinessDate(db as any)
 
   return {
     businessDate,
+    newBusinessDate,
     charges,
     report,
     discrepancies,
