@@ -22,6 +22,7 @@ import {
 } from '../factories'
 
 import { reservationDailyRates } from '../../schema/reservations'
+import { systemConfig } from '../../schema/system'
 
 import {
   setRoomTypeRate,
@@ -32,6 +33,10 @@ import {
   getDerivedRate,
 } from '../../services/rate-management'
 
+// Business date '2026-02-01' is before all test dates ('2026-03-xx') so happy paths pass.
+// Unhappy paths use a date before BD to confirm the guard fires.
+const BUSINESS_DATE = '2026-02-01'
+
 describe('Rate management service', () => {
   const db = getTestDb()
   let userId: number
@@ -39,6 +44,9 @@ describe('Rate management service', () => {
 
   beforeEach(async () => {
     await cleanupTestDb(db)
+    await db.insert(systemConfig)
+      .values({ key: 'business_date', value: BUSINESS_DATE })
+      .onConflictDoUpdate({ target: systemConfig.key, set: { value: BUSINESS_DATE } })
     const user = await createTestUser(db)
     userId = user.id
     const guest = await createTestGuest(db)
@@ -228,6 +236,27 @@ describe('Rate management service', () => {
 
       expect(result).toBeTruthy()
       expect(result!.price).toBe('250.00')
+    })
+  })
+
+  describe('guard – rejects past startDate in setRoomTypeRate', () => {
+    const PAST_DATE = '2026-01-01' // before BUSINESS_DATE '2026-02-01'
+
+    it('rejects setRoomTypeRate with a past startDate (unhappy path)', async () => {
+      const roomType = await createTestRoomType(db)
+      const ratePlan = await createTestRatePlan(db)
+
+      await expect(
+        setRoomTypeRate(roomType.id, ratePlan.id, PAST_DATE, '2026-01-31', '110.00', db),
+      ).rejects.toThrow('Rate start date')
+    })
+
+    it('allows setRoomTypeRate with a future startDate (happy path)', async () => {
+      const roomType = await createTestRoomType(db)
+      const ratePlan = await createTestRatePlan(db)
+
+      const rate = await setRoomTypeRate(roomType.id, ratePlan.id, '2026-03-01', '2026-03-31', '130.00', db)
+      expect(rate.price).toBe('130.00')
     })
   })
 })

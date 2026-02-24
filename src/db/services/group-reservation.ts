@@ -20,6 +20,7 @@ import {
   decrementInventory,
   incrementInventory,
 } from '../utils.js'
+import { assertNotPastDate } from '../guards.js'
 
 export const createGroupReservation = async (
   input: {
@@ -45,6 +46,9 @@ export const createGroupReservation = async (
   db: TxOrDb = defaultDb,
 ) => {
   return db.transaction(async (tx) => {
+    // Guard: cannot create group reservation starting in the past
+    await assertNotPastDate(input.checkInDate, tx, 'Group check-in date')
+
     const timestamp = Date.now()
     const nights = dateRange(input.checkInDate, input.checkOutDate)
     const maxOverbookPct = input.overbookingPercent
@@ -213,6 +217,9 @@ export const createGroupBlock = async (
   userId: number,
   db: TxOrDb = defaultDb,
 ) => {
+  // Guard: cannot create group blocks starting in the past
+  await assertNotPastDate(startDate, db, 'Block start date')
+
   return db.transaction(async (tx) => {
     const [block] = await tx
       .insert(roomBlocks)

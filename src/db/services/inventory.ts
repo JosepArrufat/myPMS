@@ -6,6 +6,7 @@ import { db as defaultDb } from '../index.js'
 import { roomInventory } from '../schema/roomInventory.js'
 import { roomTypes } from '../schema/rooms.js'
 import { dateRange } from '../utils.js'
+import { assertNotPastDate } from '../guards.js'
 
 type DbConnection = typeof defaultDb
 
@@ -16,6 +17,9 @@ export const seedInventory = async (
   capacity: number,
   db: DbConnection = defaultDb,
 ) => {
+  // Guard: cannot seed inventory starting in the past
+  await assertNotPastDate(startDate, db as any, 'Inventory start date')
+
   const dates = dateRange(startDate, endDate)
 
   const rows = dates.map((d) => ({

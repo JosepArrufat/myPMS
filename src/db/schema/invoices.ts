@@ -49,6 +49,7 @@ export const paymentMethodEnum = pgEnum('payment_method', [
 
 export const invoiceItemTypeEnum = pgEnum('invoice_item_type', [
   'room',
+  'room_service',
   'food',
   'beverage',
   'minibar',

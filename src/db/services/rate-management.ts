@@ -18,6 +18,7 @@ import {
   reservationRooms,
 } from '../schema/reservations.js'
 import { roomTypes } from '../schema/rooms.js'
+import { assertNotPastDate } from '../guards.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -30,6 +31,9 @@ export const setRoomTypeRate = async (
   price: string,
   db: TxOrDb = defaultDb,
 ) => {
+  // Guard: cannot set rates starting in the past
+  await assertNotPastDate(startDate, db, 'Rate start date')
+
   const [rate] = await db
     .insert(roomTypeRates)
     .values({

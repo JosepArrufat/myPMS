@@ -12,6 +12,7 @@ import {
   startTask,
   completeTask,
   generateDailyTaskBoard,
+  updateTaskType,
 } from '../db/services/housekeeping.js';
 
 import { inspectRoom } from '../db/services/inspection.js';
@@ -37,7 +38,31 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const task = await createTask(req.body, user.id);
+    if ((task as any)._alreadyExists) {
+      const { _alreadyExists, ...data } = task as any;
+      return res.status(200).json({ task: data, warning: 'An identical open task already exists for this room and date' });
+    }
+    if ((task as any)._blocked) {
+      const { _blocked, ...data } = task as any;
+      return res.status(409).json({ existingTask: data, error: 'Another open task already exists for this room and date — complete or cancel it first' });
+    }
     res.status(201).json({ task });
+  }),
+);
+
+// PATCH /api/housekeeping/tasks/:id
+router.patch(
+  '/tasks/:id',
+  authenticate,
+  requireRole('admin', 'manager', 'housekeeping'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid task id');
+    const { taskType } = req.body;
+    if (!taskType) throw new BadRequestError('taskType is required');
+    const task = await updateTaskType(id, taskType, user.id);
+    res.json({ task });
   }),
 );
 

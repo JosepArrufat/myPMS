@@ -5,16 +5,16 @@ import { requireRole } from '../middleware/requireRole.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
 import { BadRequestError } from '../errors.js';
 
-// ─── Services ───────────────────────────────────────────────────────
 import {
   createRequest,
   assignRequest,
   completeRequest,
   putRoomOutOfOrder,
   returnRoomToService,
+  updateOutOfOrderBlock,
+  releaseOutOfOrderBlock,
 } from '../db/services/maintenance.js';
 
-// ─── Queries ────────────────────────────────────────────────────────
 import {
   listOpenRequests,
   listScheduledRequests,
@@ -98,6 +98,38 @@ router.post(
     if (!roomId) throw new BadRequestError('roomId is required');
     await returnRoomToService(roomId, user.id);
     res.json({ ok: true, roomId });
+  }),
+);
+
+// PATCH /api/maintenance/out-of-order/:id
+router.patch(
+  '/out-of-order/:id',
+  authenticate,
+  requireRole('admin', 'manager', 'maintenance'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid block id');
+    const { startDate, endDate, reason } = req.body;
+    if (!startDate && !endDate && !reason) {
+      throw new BadRequestError('At least one of startDate, endDate, or reason is required');
+    }
+    const block = await updateOutOfOrderBlock(id, { startDate, endDate, reason }, user.id);
+    res.json({ block });
+  }),
+);
+
+// DELETE /api/maintenance/out-of-order/:id
+router.delete(
+  '/out-of-order/:id',
+  authenticate,
+  requireRole('admin', 'manager', 'maintenance'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid block id');
+    const block = await releaseOutOfOrderBlock(id, user.id);
+    res.json({ block });
   }),
 );
 

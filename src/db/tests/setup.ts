@@ -46,10 +46,6 @@ export const getConcurrentTestDb = () => {
   };
 };
 
-// ─── Table list (leaf tables first, root tables last) ───────────────
-// Order doesn't matter for a single TRUNCATE … CASCADE statement, but
-// keeping it organised from leaves → roots makes the dependency chain
-// easier to read.
 const ALL_TABLES = [
   'audit_log',
   'daily_rate_revenue',
@@ -80,6 +76,7 @@ const ALL_TABLES = [
   'role_permissions',
   'users',
   'permissions',
+  'system_config',
 ] as const;
 
 // ─── Cleanup (called in every beforeEach) ───────────────────────────
@@ -97,7 +94,6 @@ export const cleanupTestDb = async (db: TestDb): Promise<void> => {
   );
 };
 
-// ─── Verification (called in afterAll as a safety net) ──────────────
 export const verifyDbIsEmpty = async (db: TestDb): Promise<void> => {
   const nonEmpty: string[] = [];
 

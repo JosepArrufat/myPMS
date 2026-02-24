@@ -33,11 +33,18 @@ import {
 
 import { reservationDailyRates } from '../../schema/reservations'
 import { invoices, invoiceItems, payments } from '../../schema/invoices'
+import { systemConfig } from '../../schema/system'
 
 describe('Billing services', () => {
   const db = getTestDb()
   let userId: number
   let guestId: string
+
+  // Business date is set to '2026-02-10', which matches the factory's
+  // default issueDate. Happy-path tests use invoices dated '2026-02-10'
+  // (current day). Unhappy-path tests create invoices with an earlier
+  // issueDate to verify the guard rejects past-invoice mutations.
+  const TEST_BUSINESS_DATE = '2026-02-10'
 
   beforeEach(async () => {
     await cleanupTestDb(db)
@@ -45,6 +52,10 @@ describe('Billing services', () => {
     userId = user.id
     const guest = await createTestGuest(db)
     guestId = guest.id
+    await db
+      .insert(systemConfig)
+      .values({ key: 'business_date', value: TEST_BUSINESS_DATE })
+      .onConflictDoUpdate({ target: systemConfig.key, set: { value: TEST_BUSINESS_DATE } })
   })
 
   afterAll(async () => {
@@ -315,6 +326,70 @@ describe('Billing services', () => {
       await expect(
         processRefund(invoice.id, 999999, '10.00', 'test', userId, db),
       ).rejects.toThrow('original payment not found')
+    })
+  })
+
+  // ─── Guard: past-invoice operations blocked ─────────────────────
+  describe('guard – rejects past-day operations, allows refunds', () => {
+    // An invoice issued before the current business date is "past"
+    const PAST_DATE = '2026-01-01'
+
+    it('rejects addCharge on a past invoice (unhappy path)', async () => {
+      const invoice = await createTestInvoice(db, { guestId, issueDate: PAST_DATE })
+
+      await expect(
+        addCharge(invoice.id, { itemType: 'minibar', description: 'Water', unitPrice: '5.00' }, userId, db),
+      ).rejects.toThrow('Cannot modify a past invoice')
+    })
+
+    it('allows addCharge on a current-day invoice (happy path)', async () => {
+      const invoice = await createTestInvoice(db, { guestId, issueDate: TEST_BUSINESS_DATE })
+
+      const item = await addCharge(
+        invoice.id, { itemType: 'minibar', description: 'Water', unitPrice: '5.00' }, userId, db,
+      )
+      expect(item.itemType).toBe('minibar')
+    })
+
+    it('rejects removeCharge on a past invoice (unhappy path)', async () => {
+      // Set business date to PAST_DATE so we can add the charge first
+      await db.insert(systemConfig).values({ key: 'business_date', value: PAST_DATE })
+        .onConflictDoUpdate({ target: systemConfig.key, set: { value: PAST_DATE } })
+      const invoice = await createTestInvoice(db, { guestId, issueDate: PAST_DATE })
+      const item = await addCharge(invoice.id, { itemType: 'spa', description: 'Massage', unitPrice: '80.00' }, userId, db)
+
+      // Advance business date → invoice is now past
+      await db.insert(systemConfig).values({ key: 'business_date', value: TEST_BUSINESS_DATE })
+        .onConflictDoUpdate({ target: systemConfig.key, set: { value: TEST_BUSINESS_DATE } })
+
+      await expect(removeCharge(item.id, db)).rejects.toThrow('Cannot modify a past invoice')
+    })
+
+    it('rejects recordPayment on a past invoice (unhappy path)', async () => {
+      const invoice = await createTestInvoice(db, { guestId, issueDate: PAST_DATE, status: 'issued', balance: '100.00', totalAmount: '100.00' })
+
+      await expect(
+        recordPayment(invoice.id, { amount: '50.00', paymentMethod: 'cash' }, userId, db),
+      ).rejects.toThrow('Cannot modify a past invoice')
+    })
+
+    it('allows processRefund on a past invoice (refunds are never blocked)', async () => {
+      const invoice = await createTestInvoice(db, {
+        guestId,
+        issueDate: PAST_DATE,
+        status: 'paid',
+        paidAmount: '200.00',
+        balance: '0',
+        totalAmount: '200.00',
+      })
+      const [origPayment] = await db.insert(payments).values({
+        invoiceId: invoice.id, amount: '200.00', paymentMethod: 'credit_card', isRefund: false, createdBy: userId,
+      }).returning()
+
+      const refund = await processRefund(invoice.id, origPayment.id, '50.00', 'guest request', userId, db)
+
+      expect(refund.isRefund).toBe(true)
+      expect(refund.amount).toBe('50.00')
     })
   })
 })

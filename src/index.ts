@@ -18,6 +18,7 @@ import { groupsRouter, blocksRouter } from './routes/groups.js';
 import { invoicesRouter, foliosRouter, depositsRouter } from './routes/invoices.js';
 import housekeepingRouter from './routes/housekeeping.js';
 import maintenanceRouter from './routes/maintenance.js';
+import businessDateRouter from './routes/business-date.js';
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
@@ -52,6 +53,7 @@ app.use('/api/folios', foliosRouter);
 app.use('/api/deposits', depositsRouter);          
 app.use('/api/housekeeping', housekeepingRouter);  
 app.use('/api/maintenance', maintenanceRouter);    
+app.use('/api/business-date', businessDateRouter); 
 
 app.use(middlewareError);
 

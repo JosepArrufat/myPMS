@@ -27,11 +27,16 @@ import { inspectRoom } from '../../services/inspection'
 
 import { rooms } from '../../schema/rooms'
 import { housekeepingTasks } from '../../schema/housekeeping'
+import { systemConfig } from '../../schema/system'
 
 describe('Room lifecycle services', () => {
   const db = getTestDb()
   let userId: number
   let guestId: string
+
+  // The factory default check-in date is '2026-02-10'.
+  // Set the business date to match so assertCheckInDate passes.
+  const BUSINESS_DATE = '2026-02-10'
 
   beforeEach(async () => {
     await cleanupTestDb(db)
@@ -39,6 +44,10 @@ describe('Room lifecycle services', () => {
     userId = user.id
     const guest = await createTestGuest(db)
     guestId = guest.id
+    await db
+      .insert(systemConfig)
+      .values({ key: 'business_date', value: BUSINESS_DATE })
+      .onConflictDoUpdate({ target: systemConfig.key, set: { value: BUSINESS_DATE } })
   })
 
   afterAll(async () => {
@@ -298,6 +307,13 @@ describe('Room lifecycle services', () => {
 
   describe('Full lifecycle: check-in → check-out → inspect', () => {
     it('transitions room through the entire flow', async () => {
+      // Override business date to match the lifecycle test's check-in date
+      const LIFECYCLE_BD = '2026-03-10'
+      await db
+        .insert(systemConfig)
+        .values({ key: 'business_date', value: LIFECYCLE_BD })
+        .onConflictDoUpdate({ target: systemConfig.key, set: { value: LIFECYCLE_BD } })
+
       const room = await createTestRoom(db, {
         status: 'available',
         cleanlinessStatus: 'inspected',

@@ -9,6 +9,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db as defaultDb } from '../index.js'
 import { reservations } from '../schema/reservations.js'
 import { rooms } from '../schema/rooms.js'
+import { assertCheckInDate } from '../guards.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -50,12 +51,15 @@ export const checkInReservation = async (
 ) => {
   return db.transaction(async (tx) => {
     const [existing] = await tx
-      .select({ guestId: reservations.guestId })
+      .select({ guestId: reservations.guestId, checkInDate: reservations.checkInDate })
       .from(reservations)
       .where(eq(reservations.id, reservationId))
       .limit(1)
 
     if (!existing) throw new Error('reservation not found')
+
+    // Guard: check-in is only allowed on the reservation's check-in date
+    await assertCheckInDate(existing.checkInDate, tx)
 
     if (!existing.guestId && !guestId) {
       throw new Error('guestId is required at check-in')

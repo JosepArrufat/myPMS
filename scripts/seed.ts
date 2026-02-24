@@ -132,7 +132,7 @@ async function seed() {
   `)
   console.log('    ✓ All tables truncated')
 
-  // ── 1. Users ────────────────────────────────────────────────────
+  // 1. Users 
   console.log('  → Users (hashing passwords...)')
 
   // Known plaintext passwords — use these to log in via Postman:
@@ -157,7 +157,7 @@ async function seed() {
   const hkUsers = [createdUsers[4], createdUsers[5]]
   console.log(`    ✓ ${createdUsers.length} users`)
 
-  // ── 2. Room Types ───────────────────────────────────────────────
+  // 2. Room Types 
   console.log('  → Room Types')
   const rtData: schema.NewRoomType[] = [
     { name: 'Standard Single', code: 'STD_SGL', basePrice: '95.00', maxOccupancy: 1, maxAdults: 1, maxChildren: 0, totalRooms: 20, sizeSqm: '18.00', bedConfiguration: '1 Single', viewType: 'city', amenities: ['wifi', 'tv', 'minibar', 'safe'], sortOrder: 1 },
@@ -170,7 +170,7 @@ async function seed() {
   const createdRTs = await db.insert(roomTypes).values(rtData).returning()
   console.log(`    ✓ ${createdRTs.length} room types`)
 
-  // ── 3. Rooms ────────────────────────────────────────────────────
+  // 3. Rooms 
   console.log('  → Rooms')
   const roomValues: schema.NewRoom[] = []
   let roomCounter = 0
@@ -192,7 +192,7 @@ async function seed() {
   const createdRooms = await db.insert(rooms).values(roomValues).returning()
   console.log(`    ✓ ${createdRooms.length} rooms`)
 
-  // ── 4. Rate Plans ───────────────────────────────────────────────
+  // 4. Rate Plans 
   console.log('  → Rate Plans')
   const rpData: schema.NewRatePlan[] = [
     { name: 'Best Available Rate', code: 'BAR', description: 'Standard flexible rate', isPublic: true, cancellationDeadlineHours: 24, includesBreakfast: true, isActive: true },
@@ -205,7 +205,7 @@ async function seed() {
   const nrPlan = createdRPs[2]
   console.log(`    ✓ ${createdRPs.length} rate plans`)
 
-  // ── 5. Room Type Rates (90-day window) ──────────────────────────
+  // 5. Room Type Rates (90-day window) 
   console.log('  → Room Type Rates (BAR, 90 days)')
   const rateStart = addDays(today, -30)
   const rateEnd = addDays(today, 60)
@@ -220,7 +220,7 @@ async function seed() {
   await db.insert(roomTypeRates).values(rtrValues)
   console.log(`    ✓ ${rtrValues.length} room type rate rows`)
 
-  // ── 6. Rate Adjustments (derived pricing) ───────────────────────
+  // 6. Rate Adjustments (derived pricing) 
   console.log('  → Rate Adjustments')
   const stdDbl = createdRTs[1]
   const adjValues: schema.NewRoomTypeRateAdjustment[] = [
@@ -233,7 +233,7 @@ async function seed() {
   await db.insert(roomTypeRateAdjustments).values(adjValues)
   console.log(`    ✓ ${adjValues.length} rate adjustments`)
 
-  // ── 7. Room Inventory (90-day window) ───────────────────────────
+  // 7. Room Inventory (90-day window) 
   console.log('  → Room Inventory (90 days)')
   const invValues: schema.NewRoomInventory[] = []
   for (let d = -30; d <= 60; d++) {
@@ -251,7 +251,7 @@ async function seed() {
   await db.insert(roomInventory).values(invValues)
   console.log(`    ✓ ${invValues.length} inventory rows`)
 
-  // ── 8. Agencies ─────────────────────────────────────────────────
+  // 8. Agencies 
   console.log('  → Agencies')
   const agencyData: schema.NewAgency[] = [
     { name: 'Iberia Travel Group', code: 'IBER', type: 'agency', contactPerson: 'Miguel Ruiz', email: 'bookings@iberiatravel.com', phone: '+34 91 555 1234', commissionPercent: '12.00', city: 'Madrid', country: 'Spain' },
@@ -260,7 +260,7 @@ async function seed() {
   const createdAgencies = await db.insert(agencies).values(agencyData).returning()
   console.log(`    ✓ ${createdAgencies.length} agencies`)
 
-  // ── 9. Guests ───────────────────────────────────────────────────
+  // 9. Guests 
   console.log('  → Guests')
   const guestValues: schema.NewGuest[] = []
   for (let i = 0; i < 80; i++) {
@@ -284,7 +284,7 @@ async function seed() {
   const createdGuests = await db.insert(guests).values(guestValues).returning()
   console.log(`    ✓ ${createdGuests.length} guests`)
 
-  // ── 10. Reservations ────────────────────────────────────────────
+  // 10. Reservations 
   console.log('  → Reservations')
 
   const resStatuses: Array<typeof schema.reservationStatusEnum.enumValues[number]> = [
@@ -440,7 +440,7 @@ async function seed() {
   }
   console.log(`    ✓ ${resCount} reservations, ${invoiceCount} invoices, ${itemCount} items, ${paymentCount} payments`)
 
-  // ── 11. Housekeeping Tasks ──────────────────────────────────────
+  // 11. Housekeeping Tasks 
   console.log('  → Housekeeping Tasks')
   const hkTypes: Array<typeof schema.housekeepingTaskTypeEnum.enumValues[number]> = [
     'client_service', 'checkout_cleaning', 'deep_cleaning', 'turndown_service', 'linen_change',
@@ -470,7 +470,7 @@ async function seed() {
   await db.insert(housekeepingTasks).values(hkValues)
   console.log(`    ✓ ${hkValues.length} housekeeping tasks`)
 
-  // ── 12. Maintenance Requests ────────────────────────────────────
+  // 12. Maintenance Requests 
   console.log('  → Maintenance Requests')
   const maintCategories = ['plumbing', 'electrical', 'hvac', 'furniture', 'painting', 'appliance']
   const maintPriorities: Array<'low' | 'normal' | 'high' | 'urgent'> = ['low', 'normal', 'high', 'urgent']
@@ -494,7 +494,7 @@ async function seed() {
   await db.insert(maintenanceRequests).values(maintValues)
   console.log(`    ✓ ${maintValues.length} maintenance requests`)
 
-  // ── 13. Promotions ──────────────────────────────────────────────
+  // 13. Promotions 
   console.log('  → Promotions')
   const promoValues: schema.NewPromotion[] = [
     { code: 'SUMMER25', name: 'Summer Sale 25%', description: '25% off for summer bookings', discountType: 'percent', discountValue: '25.00', validFrom: addDays(today, 10), validTo: addDays(today, 90), minNights: 3, isActive: true },
@@ -504,7 +504,7 @@ async function seed() {
   await db.insert(promotions).values(promoValues)
   console.log(`    ✓ ${promoValues.length} promotions`)
 
-  // ── 14. Overbooking Policies ────────────────────────────────────
+  // 14. Overbooking Policies 
   console.log('  → Overbooking Policies')
   const obValues: schema.NewOverbookingPolicy[] = [
     { roomTypeId: null, startDate: addDays(today, 0), endDate: addDays(today, 30), overbookingPercent: 105 },
@@ -514,7 +514,16 @@ async function seed() {
   await db.insert(overbookingPolicies).values(obValues)
   console.log(`    ✓ ${obValues.length} overbooking policies`)
 
-  // ── done ────────────────────────────────────────────────────────
+  // 15. Business Date 
+  console.log('  → Business Date')
+  await db.execute(sql`
+    INSERT INTO system_config (key, value)
+    VALUES ('business_date', ${todayStr})
+    ON CONFLICT (key) DO UPDATE SET value = ${todayStr}
+  `)
+  console.log(`    ✓ business_date set to ${todayStr}`)
+
+  //  done 
   console.log('\n✅ Seed complete!\n')
   console.log('  Seeded credentials (use these to POST /api/auth/login in Postman):')
   console.log('    admin@hotel.com         → admin123   (role: admin)')

@@ -17,7 +17,6 @@ import {
 import { listPaymentsForInvoice } from '../db/queries/finance/payments.js';
 import { listInvoiceItems } from '../db/queries/finance/invoice-items.js';
 
-// ─── Billing (services) ────────────────────────────────────────────
 import {
   generateInvoice,
   addCharge,
@@ -26,7 +25,6 @@ import {
   processRefund,
 } from '../db/services/billing.js';
 
-// ─── Folio ──────────────────────────────────────────────────────────
 import {
   postCharge,
   getFolioBalance,
@@ -34,7 +32,6 @@ import {
   splitFolio,
 } from '../db/services/folio.js';
 
-// ─── Deposits ───────────────────────────────────────────────────────
 import {
   collectDeposit,
   applyDepositToInvoice,
@@ -57,6 +54,10 @@ invoicesRouter.post(
     const { reservationId } = req.body;
     if (!reservationId) throw new BadRequestError('reservationId is required');
     const invoice = await generateInvoice(reservationId, user.id);
+    if ((invoice as any)._alreadyExists) {
+      const { _alreadyExists, ...data } = invoice as any;
+      return res.status(200).json({ invoice: data, warning: 'Invoice already exists for this reservation' });
+    }
     res.status(201).json({ invoice });
   }),
 );

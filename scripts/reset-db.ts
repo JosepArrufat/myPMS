@@ -1,11 +1,6 @@
 /**
- * Reset Database Script
- *
- * Truncates all tables in the correct FK-safe order using CASCADE.
- * This preserves the schema (enums, indexes, constraints) but removes all rows.
- *
- * Usage:  npx tsx scripts/reset-db.ts
- */
+ * Reset Database Script: npm run script
+**/
 
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'

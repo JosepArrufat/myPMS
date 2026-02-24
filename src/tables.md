@@ -241,7 +241,7 @@ Line items on an invoice (room nights, minibar, spa, etc.). â†’ `invoices.id`, â
 | 2 | inv-0001 | room | Room night - 2026-03-02 | 1 | 149.00 | 149.00 |
 | 3 | inv-0001 | minibar | Minibar charges | 1 | 25.00 | 25.00 |
 
-> **invoice_item_type** enum: `room`, `food`, `beverage`, `minibar`, `laundry`, `spa`, `parking`, `telephone`, `internet`, `other`
+> **invoice_item_type** enum: `room`, `room_service`, `food`, `beverage`, `minibar`, `laundry`, `spa`, `parking`, `telephone`, `internet`, `other`
 
 ### payments
 

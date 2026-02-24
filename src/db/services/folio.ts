@@ -19,6 +19,8 @@ type InvoiceItemType = (typeof invoiceItemTypeEnum.enumValues)[number]
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
 
+import { assertInvoiceModifiable } from '../guards.js'
+
 const recalculateInvoice = async (
   invoiceId: string,
   tx: PgTransaction<any, any, any>,
@@ -82,9 +84,14 @@ export const postCharge = async (
   db: TxOrDb = defaultDb,
 ) => {
   return db.transaction(async (tx) => {
+    // Guard: cannot post charges to a past-day invoice
+    await assertInvoiceModifiable(invoiceId, tx)
+
     const qty = parseFloat(charge.quantity ?? '1')
     const price = parseFloat(charge.unitPrice)
     const total = (qty * price).toFixed(2)
+    const cleanQty = String(parseFloat(String(qty)))
+    const serviceDate = charge.dateOfService ?? new Date().toISOString().slice(0, 10)
 
     const [item] = await tx
       .insert(invoiceItems)
@@ -92,8 +99,8 @@ export const postCharge = async (
         invoiceId,
         itemType: charge.itemType,
         description: charge.description,
-        dateOfService: charge.dateOfService,
-        quantity: charge.quantity ?? '1',
+        dateOfService: serviceDate,
+        quantity: cleanQty,
         unitPrice: charge.unitPrice,
         total,
         roomId: charge.roomId,
@@ -163,6 +170,10 @@ export const transferCharge = async (
 
     const sourceInvoiceId = item.invoiceId
 
+    // Guard: both source and target invoices must be current-day
+    await assertInvoiceModifiable(sourceInvoiceId, tx)
+    await assertInvoiceModifiable(targetInvoiceId, tx)
+
     const [target] = await tx
       .select({ id: invoices.id })
       .from(invoices)
@@ -214,6 +225,9 @@ export const splitFolio = async (
       .limit(1)
 
     if (!source) throw new Error('source invoice not found')
+
+    // Guard: cannot split a past-day invoice
+    await assertInvoiceModifiable(sourceInvoiceId, tx)
 
     const timestamp = Date.now()
     const [newInvoice] = await tx

@@ -1,4 +1,5 @@
 import {
+  and,
   eq,
   sql,
 } from 'drizzle-orm'
@@ -23,6 +24,7 @@ import {
   reservationRooms,
   reservationDailyRates,
 } from '../schema/reservations.js'
+import { assertInvoiceModifiable } from '../guards.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -95,6 +97,21 @@ export const generateInvoice = async (
       throw new Error('reservation has no guest assigned — cannot generate invoice')
     }
 
+    const [existing] = await tx
+      .select()
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.reservationId, reservationId),
+          eq(invoices.invoiceType, 'final'),
+        ),
+      )
+      .limit(1)
+
+    if (existing) {
+      return { ...existing, _alreadyExists: true }
+    }
+
     const rooms = await tx
       .select()
       .from(reservationRooms)
@@ -130,7 +147,7 @@ export const generateInvoice = async (
             description: `Room night - ${dr.date}`,
             dateOfService: dr.date,
             quantity: '1',
-            unitPrice: dr.rate,
+            unitPrice: String(rate),
             total: rate.toFixed(2),
             createdBy: userId,
           })
@@ -163,9 +180,14 @@ export const addCharge = async (
   db: TxOrDb = defaultDb,
 ) => {
   return db.transaction(async (tx) => {
+    // Guard: cannot add charges to a past-day invoice
+    await assertInvoiceModifiable(invoiceId, tx)
+
     const qty = parseFloat(item.quantity ?? '1')
     const price = parseFloat(item.unitPrice)
     const total = (qty * price).toFixed(2)
+    const cleanQty = String(parseFloat(String(qty)))
+    const serviceDate = item.dateOfService ?? new Date().toISOString().slice(0, 10)
 
     const [newItem] = await tx
       .insert(invoiceItems)
@@ -173,8 +195,8 @@ export const addCharge = async (
         invoiceId,
         itemType: item.itemType,
         description: item.description,
-        dateOfService: item.dateOfService,
-        quantity: item.quantity ?? '1',
+        dateOfService: serviceDate,
+        quantity: cleanQty,
         unitPrice: item.unitPrice,
         total,
         roomId: item.roomId,
@@ -194,13 +216,21 @@ export const removeCharge = async (
 ) => {
   return db.transaction(async (tx) => {
     const [item] = await tx
-      .delete(invoiceItems)
+      .select()
+      .from(invoiceItems)
       .where(eq(invoiceItems.id, invoiceItemId))
-      .returning()
+      .limit(1)
 
     if (!item) {
       throw new Error('invoice item not found')
     }
+
+    // Guard: cannot remove charges from a past-day invoice
+    await assertInvoiceModifiable(item.invoiceId, tx)
+
+    await tx
+      .delete(invoiceItems)
+      .where(eq(invoiceItems.id, invoiceItemId))
 
     await recalculateInvoice(item.invoiceId, tx)
 
@@ -220,6 +250,9 @@ export const recordPayment = async (
   db: TxOrDb = defaultDb,
 ) => {
   return db.transaction(async (tx) => {
+    // Guard: cannot record payment on a past-day invoice
+    await assertInvoiceModifiable(invoiceId, tx)
+
     const [newPayment] = await tx
       .insert(payments)
       .values({

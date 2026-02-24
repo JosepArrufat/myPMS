@@ -14,12 +14,22 @@ import {
   getBlockPickup,
   releaseGroupBlock,
 } from '../../services/group-reservation'
+import { systemConfig } from '../../schema/system'
 
 let db: TestDb
+// Business date = today (real calendar date). All test dates use daysFromNow(10+)
+// so they are always in the future. Unhappy paths use yesterday.
+const BUSINESS_DATE = new Date().toISOString().slice(0, 10)
+const YESTERDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
 
 beforeAll(() => { db = getTestDb() })
 afterAll(async () => { await cleanupTestDb(db) })
-beforeEach(async () => { await cleanupTestDb(db) })
+beforeEach(async () => {
+  await cleanupTestDb(db)
+  await db.insert(systemConfig)
+    .values({ key: 'business_date', value: BUSINESS_DATE })
+    .onConflictDoUpdate({ target: systemConfig.key, set: { value: BUSINESS_DATE } })
+})
 
 describe('group reservation service', () => {
   describe('createGroupReservation', () => {
@@ -421,6 +431,93 @@ describe('group reservation service', () => {
       await expect(
         releaseGroupBlock(block.id, user.id, db),
       ).rejects.toThrow('block not found or already released')
+    })
+  })
+
+  // ─── Guard: past-date operations blocked ────────────────────────
+  describe('guard – rejects past-day operations', () => {
+    it('rejects createGroupBlock with a past startDate (unhappy path)', async () => {
+      const user = await createTestUser(db)
+      const rt = await createTestRoomType(db)
+
+      await expect(
+        createGroupBlock(rt.id, YESTERDAY, BUSINESS_DATE, 3, 'Past Block', user.id, db),
+      ).rejects.toThrow('Block start date')
+    })
+
+    it('allows createGroupBlock with a future startDate (happy path)', async () => {
+      const user = await createTestUser(db)
+      const rt = await createTestRoomType(db)
+      const startDate = dateHelpers.daysFromNow(10)
+      const endDate = dateHelpers.daysFromNow(15)
+
+      for (let i = 10; i < 15; i++) {
+        await createTestRoomInventory(db, {
+          roomTypeId: rt.id,
+          date: dateHelpers.daysFromNow(i),
+          capacity: 20,
+          available: 20,
+        })
+      }
+
+      const block = await createGroupBlock(rt.id, startDate, endDate, 3, 'Future Block', user.id, db)
+      expect(block.quantity).toBe(3)
+    })
+
+    it('rejects createGroupReservation with a past checkInDate (unhappy path)', async () => {
+      const user = await createTestUser(db)
+      const guest = await createTestGuest(db)
+      const rt = await createTestRoomType(db)
+
+      await createTestRoomInventory(db, {
+        roomTypeId: rt.id,
+        date: YESTERDAY,
+        capacity: 10,
+        available: 10,
+      })
+
+      await expect(
+        createGroupReservation(
+          {
+            contactGuestId: guest.id,
+            groupName: 'Past Group',
+            checkInDate: YESTERDAY,
+            checkOutDate: BUSINESS_DATE,
+            rooms: [{ roomTypeId: rt.id, dailyRate: '100.00' }],
+          },
+          user.id,
+          db,
+        ),
+      ).rejects.toThrow('Group check-in date')
+    })
+
+    it('allows createGroupReservation with a future checkInDate (happy path)', async () => {
+      const user = await createTestUser(db)
+      const guest = await createTestGuest(db)
+      const rt = await createTestRoomType(db)
+      const checkIn = dateHelpers.daysFromNow(5)
+      const checkOut = dateHelpers.daysFromNow(6)
+
+      await createTestRoomInventory(db, {
+        roomTypeId: rt.id,
+        date: checkIn,
+        capacity: 10,
+        available: 10,
+      })
+
+      const result = await createGroupReservation(
+        {
+          contactGuestId: guest.id,
+          groupName: 'Future Group',
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          rooms: [{ roomTypeId: rt.id, dailyRate: '100.00' }],
+        },
+        user.id,
+        db,
+      )
+
+      expect((result as any).reservation.status).toBe('pending')
     })
   })
 })

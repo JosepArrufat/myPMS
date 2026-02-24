@@ -20,6 +20,7 @@ export const userRoleEnum = pgEnum('user_role', [
   'manager',
   'front_desk',
   'housekeeping',
+  'maintenance',
   'accountant',
   'sales',
   'guest_services'
