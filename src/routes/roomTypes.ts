@@ -17,7 +17,7 @@ import {
 
 const router = Router();
 
-// ─── GET /api/room-types ───────────────────────────────────────────
+// GET /api/room-types
 router.get(
   '/',
   authenticate,
@@ -27,7 +27,7 @@ router.get(
   }),
 );
 
-// ─── GET /api/room-types/:id ───────────────────────────────────────
+// GET /api/room-types/:id
 router.get(
   '/:id',
   authenticate,
@@ -45,7 +45,7 @@ router.get(
   }),
 );
 
-// ─── POST /api/room-types ──────────────────────────────────────────
+// POST /api/room-types
 router.post(
   '/',
   authenticate,
@@ -67,7 +67,7 @@ router.post(
   }),
 );
 
-// ─── PATCH /api/room-types/:id ─────────────────────────────────────
+// PATCH /api/room-types/:id
 router.patch(
   '/:id',
   authenticate,

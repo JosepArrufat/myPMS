@@ -92,7 +92,7 @@ router.get(
   }),
 );
 
-// GET /api/roles/:role/permissions ───────────────────────────────
+// GET /api/roles/:role/permissions
 router.get(
   '/roles/:role/permissions',
   authenticate,

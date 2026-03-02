@@ -5,7 +5,6 @@ import { requireRole } from '../middleware/requireRole.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
 import { BadRequestError } from '../errors.js';
 
-// ─── Services ───────────────────────────────────────────────────────
 import {
   createTask,
   assignTask,
@@ -17,7 +16,6 @@ import {
 
 import { inspectRoom } from '../db/services/inspection.js';
 
-// ─── Queries ────────────────────────────────────────────────────────
 import {
   listTasksForDate,
   listTasksForRoom,
@@ -25,10 +23,6 @@ import {
 } from '../db/queries/housekeeping/housekeeping-tasks.js';
 
 const router = Router();
-
-// ═══════════════════════════════════════════════════════════════════
-//  1.13  Housekeeping — /api/housekeeping
-// ═══════════════════════════════════════════════════════════════════
 
 // POST /api/housekeeping/tasks
 router.post(

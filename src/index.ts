@@ -19,6 +19,12 @@ import { invoicesRouter, foliosRouter, depositsRouter } from './routes/invoices.
 import housekeepingRouter from './routes/housekeeping.js';
 import maintenanceRouter from './routes/maintenance.js';
 import businessDateRouter from './routes/business-date.js';
+import promotionsRouter from './routes/promotions.js';
+import overbookingRouter from './routes/overbooking.js';
+import dashboardRouter from './routes/dashboard.js';
+import nightAuditRouter from './routes/night-audit.js';
+import reportsRouter from './routes/reports.js';
+import auditRouter from './routes/audit.js';
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
@@ -54,6 +60,12 @@ app.use('/api/deposits', depositsRouter);
 app.use('/api/housekeeping', housekeepingRouter);  
 app.use('/api/maintenance', maintenanceRouter);    
 app.use('/api/business-date', businessDateRouter); 
+app.use('/api/promotions', promotionsRouter);
+app.use('/api/overbooking-policies', overbookingRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/night-audit', nightAuditRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/audit', auditRouter);
 
 app.use(middlewareError);
 

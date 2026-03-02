@@ -32,16 +32,12 @@ export interface AvailabilityRequest {
   quantity: number
 }
 
-// ─── Lookup overbooking percent from policy table ───────────────────
-/**
- * Priority: room-type-specific policy → hotel-wide policy → 100 (none).
- */
+// Lookup: room-type-specific → hotel-wide → 100 (no overbooking)
 export const lookupOverbookingPercent = async (
   roomTypeId: number,
   date: string,
   tx: TxOrDb,
 ): Promise<number> => {
-  // 1. Room-type-specific policy
   const [specific] = await tx
     .select({ overbookingPercent: overbookingPolicies.overbookingPercent })
     .from(overbookingPolicies)
@@ -56,7 +52,6 @@ export const lookupOverbookingPercent = async (
 
   if (specific) return specific.overbookingPercent
 
-  // 2. Hotel-wide fallback
   const [hotelWide] = await tx
     .select({ overbookingPercent: overbookingPolicies.overbookingPercent })
     .from(overbookingPolicies)
@@ -71,16 +66,10 @@ export const lookupOverbookingPercent = async (
 
   if (hotelWide) return hotelWide.overbookingPercent
 
-  // 3. Default — no overbooking
   return 100
 }
 
-// ─── Validate availability (with optional auto-lookup) ──────────────
-/**
- * When `overbookingPercent` is omitted (undefined), the function
- * auto-looks-up the effective policy per room type per night.
- * Pass an explicit number to override (e.g. manager override).
- */
+// Auto-looks-up overbooking policy per room type per night when overbookingPercent is omitted
 export const validateAvailability = async (
   requests: AvailabilityRequest[],
   checkIn: string,
@@ -114,7 +103,6 @@ export const validateAvailability = async (
         )
       }
 
-      // Auto-lookup from policy table when caller didn't specify
       const effectivePct = overbookingPercent
         ?? await lookupOverbookingPercent(rtId, night, tx)
 

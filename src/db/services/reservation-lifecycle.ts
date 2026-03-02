@@ -25,7 +25,6 @@ type ReservationStatus = (typeof reservationStatusEnum.enumValues)[number]
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
 
-// ─── Rate-plan policy helpers ───────────────────────────────────────
 
 interface CancellationPolicy {
   isNonRefundable: boolean

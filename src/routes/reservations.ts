@@ -5,7 +5,6 @@ import { requireRole } from '../middleware/requireRole.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
 import { BadRequestError, NotFoundError } from '../errors.js';
 
-// ─── Queries ────────────────────────────────────────────────────────
 import {
   createReservation,
   findReservation,
@@ -25,7 +24,6 @@ import {
   listAssignmentsForDate,
 } from '../db/queries/reservations/room-assignments.js';
 
-// ─── Services ───────────────────────────────────────────────────────
 import {
   confirmReservation,
   cancelReservation,
@@ -44,14 +42,9 @@ import {
 import { assignRoom, unassignRoom } from '../db/services/room-assignment.js';
 import { getBusinessDate, setBusinessDate } from '../db/services/business-date.js';
 
-// ═══════════════════════════════════════════════════════════════════
-//  1.7  Reservations
-// ═══════════════════════════════════════════════════════════════════
 const router = Router();
 
-// ─── Business date helper ───────────────────────────────────────────
-// Rejects mutations on reservations whose check-out is before the
-// current business date (i.e. the stay is in the past).
+// Rejects mutations when check-out is before the current business date.
 const guardPastReservation = async (checkOutDate: string | undefined) => {
   if (!checkOutDate) return;
   const bd = await getBusinessDate();
@@ -62,7 +55,6 @@ const guardPastReservation = async (checkOutDate: string | undefined) => {
   }
 };
 
-// GET /api/reservations/business-date  – fetch the current business date
 router.get(
   '/business-date',
   authenticate,
@@ -72,7 +64,6 @@ router.get(
   }),
 );
 
-// PUT /api/reservations/business-date  – manually set the business date (admin only)
 router.put(
   '/business-date',
   authenticate,
@@ -85,7 +76,6 @@ router.put(
   }),
 );
 
-// POST /api/reservations
 router.post(
   '/',
   authenticate,
@@ -102,9 +92,6 @@ router.post(
   }),
 );
 
-// ── Static single-segment routes MUST come before the /:idOrNumber wildcard ──
-
-// GET /api/reservations/guest/:id
 router.get(
   '/guest/:id',
   authenticate,
@@ -114,7 +101,6 @@ router.get(
   }),
 );
 
-// GET /api/reservations/arrivals/:date
 router.get(
   '/arrivals/:date',
   authenticate,
@@ -124,7 +110,6 @@ router.get(
   }),
 );
 
-// GET /api/reservations/departures/:date
 router.get(
   '/departures/:date',
   authenticate,
@@ -134,7 +119,6 @@ router.get(
   }),
 );
 
-// GET /api/reservations/stay-window?from=&to=
 router.get(
   '/stay-window',
   authenticate,
@@ -146,7 +130,6 @@ router.get(
   }),
 );
 
-// GET /api/reservations/agency/:id
 router.get(
   '/agency/:id',
   authenticate,
@@ -158,7 +141,7 @@ router.get(
   }),
 );
 
-// GET /api/reservations/:idOrNumber  – lookup by reservation number OR UUID id (wildcard – must be last single-segment GET)
+// wildcard – must come after all fixed routes
 router.get(
   '/:idOrNumber',
   authenticate,
@@ -169,9 +152,6 @@ router.get(
   }),
 );
 
-// ── Lifecycle actions ───────────────────────────────────────────────
-
-// POST /api/reservations/:id/confirm – guard: cannot confirm past reservations
 router.post(
   '/:id/confirm',
   authenticate,
@@ -186,7 +166,6 @@ router.post(
   }),
 );
 
-// POST /api/reservations/:id/check-in – guestId required at check-in
 router.post(
   '/:id/check-in',
   authenticate,
@@ -204,7 +183,6 @@ router.post(
   }),
 );
 
-// POST /api/reservations/:id/check-out – guard: cannot check out past reservations
 router.post(
   '/:id/check-out',
   authenticate,
@@ -221,7 +199,6 @@ router.post(
   }),
 );
 
-// POST /api/reservations/:id/cancel – guard: cannot cancel past reservations
 router.post(
   '/:id/cancel',
   authenticate,
@@ -243,7 +220,6 @@ router.post(
   }),
 );
 
-// POST /api/reservations/:id/no-show – guard: cannot mark no-show on past reservations
 router.post(
   '/:id/no-show',
   authenticate,
@@ -258,7 +234,6 @@ router.post(
   }),
 );
 
-// GET /api/reservations/:id/status
 router.get(
   '/:id/status',
   authenticate,
@@ -268,11 +243,8 @@ router.get(
   }),
 );
 
-// ── Rate overrides ──────────────────────────────────────────────────
-
-// POST /api/reservations/:id/rate-override – overrides daily rates & recalculates total
 // Body: { startDate, endDate, newRate, reservationRoomId? }
-// When reservationRoomId is omitted it updates ALL rooms in the reservation.
+// Omitting reservationRoomId updates all rooms in the reservation.
 router.post(
   '/:id/rate-override',
   authenticate,
@@ -297,7 +269,6 @@ router.post(
   }),
 );
 
-// POST /api/reservations/:id/recalculate
 router.post(
   '/:id/recalculate',
   authenticate,
@@ -309,11 +280,6 @@ router.post(
   }),
 );
 
-// ═══════════════════════════════════════════════════════════════════
-//  1.8  Reservation Rooms & Assignments
-// ═══════════════════════════════════════════════════════════════════
-
-// GET /api/reservations/:id/rooms
 router.get(
   '/:id/rooms',
   authenticate,
@@ -323,10 +289,7 @@ router.get(
   }),
 );
 
-// POST /api/reservations/:id/assign-room
-// Assigns a physical room to this reservation for its entire stay.
-// If the reservation has multiple room-type slots, the first unassigned slot
-// matching the physical room's type is filled.
+// fills the first unassigned room-type slot matching the given room's type
 router.post(
   '/:id/assign-room',
   authenticate,
@@ -346,7 +309,6 @@ router.post(
   }),
 );
 
-// DELETE /api/reservations/:id/unassign-room
 router.delete(
   '/:id/unassign-room',
   authenticate,
@@ -366,11 +328,8 @@ router.delete(
 
 export default router;
 
-// ─── Standalone routers for non-reservation-scoped endpoints ────────
-
 export const roomAssignmentsRouter = Router();
 
-// GET /api/room-assignments/:date
 roomAssignmentsRouter.get(
   '/:date',
   authenticate,
@@ -382,7 +341,6 @@ roomAssignmentsRouter.get(
 
 export const roomConflictsRouter = Router();
 
-// GET /api/room-conflicts?roomId=&from=&to=
 roomConflictsRouter.get(
   '/',
   authenticate,

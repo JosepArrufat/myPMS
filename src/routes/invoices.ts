@@ -5,7 +5,6 @@ import { requireRole } from '../middleware/requireRole.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
 import { BadRequestError, NotFoundError } from '../errors.js';
 
-// ─── Billing (queries) ─────────────────────────────────────────────
 import {
   findInvoiceByNumber,
   listGuestInvoices,
@@ -39,9 +38,7 @@ import {
   getDepositHistory,
 } from '../db/services/deposits.js';
 
-// ═══════════════════════════════════════════════════════════════════
-//  1.10  Billing & Invoices — /api/invoices
-// ═══════════════════════════════════════════════════════════════════
+// Billing & Invoices
 export const invoicesRouter = Router();
 
 // POST /api/invoices/generate
@@ -179,9 +176,7 @@ invoicesRouter.post(
   }),
 );
 
-// ═══════════════════════════════════════════════════════════════════
-//  1.11  Folio — /api/folios
-// ═══════════════════════════════════════════════════════════════════
+// Folio
 export const foliosRouter = Router();
 
 // POST /api/folios/:invoiceId/charge
@@ -238,9 +233,7 @@ foliosRouter.post(
   }),
 );
 
-// ═══════════════════════════════════════════════════════════════════
-//  1.12  Deposits — /api/deposits
-// ═══════════════════════════════════════════════════════════════════
+// Deposits
 export const depositsRouter = Router();
 
 // POST /api/deposits/collect

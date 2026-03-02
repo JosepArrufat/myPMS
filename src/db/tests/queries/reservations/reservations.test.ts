@@ -333,9 +333,7 @@ describe('Reservations - reservations', () => {
     });
   });
 
-  // ─── Race-condition tests ───────────────────────────────────────────
-  // Uses a separate pool with max:2 so two transactions can truly
-  // run in parallel against the same Postgres database.
+  // Separate pool (max:2) so two transactions run in parallel
   describe('Race condition – concurrent bookings', () => {
     let concDb: TestDb;
     let closeConcPool: () => Promise<void>;

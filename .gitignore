@@ -18,6 +18,8 @@ src/db/migrations/
 
 # Local test scripts
 scripts/smoke-test.ts
+# Local next-steps doc (not source)
+src/next_steps.md
 
 # OS files
 .DS_Store

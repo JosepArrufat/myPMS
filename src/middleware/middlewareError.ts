@@ -29,7 +29,7 @@ export const middlewareError: MiddlewareError = (err, req, res, next) => {
     } else if (err instanceof HttpError) {
         res.status(err.statusCode).json({ error: err.message });
 
-    // ── Postgres / Drizzle SQLSTATE codes ────────────────────────
+    // Postgres SQLSTATE codes
     } else if (pgCode === '23505') {
         // unique_violation — extract the conflicting field name from detail
         // e.g. "Key (room_number)=(501) already exists."

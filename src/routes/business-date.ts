@@ -11,10 +11,6 @@ import {
 
 const router = Router()
 
-// ═══════════════════════════════════════════════════════════════════
-//  Business Date — /api/business-date
-// ═══════════════════════════════════════════════════════════════════
-
 // GET /api/business-date
 // Returns the current hotel business date (YYYY-MM-DD).
 router.get(

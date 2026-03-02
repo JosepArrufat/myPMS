@@ -434,7 +434,7 @@ describe('group reservation service', () => {
     })
   })
 
-  // ─── Guard: past-date operations blocked ────────────────────────
+
   describe('guard – rejects past-day operations', () => {
     it('rejects createGroupBlock with a past startDate (unhappy path)', async () => {
       const user = await createTestUser(db)

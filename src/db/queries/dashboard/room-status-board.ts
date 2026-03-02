@@ -11,7 +11,6 @@ import { housekeepingTasks } from '../../schema/housekeeping.js'
 
 type DbConnection = typeof defaultDb
 
-// ─── Room status board (all rooms with current status) ──────────────
 export const getRoomStatusBoard = async (
   db: DbConnection = defaultDb,
 ) => {
@@ -32,7 +31,6 @@ export const getRoomStatusBoard = async (
   return allRooms
 }
 
-// ─── Today's arrivals ───────────────────────────────────────────────
 export const getArrivals = async (
   date: string,
   db: DbConnection = defaultDb,
@@ -56,7 +54,6 @@ export const getArrivals = async (
       ),
     )
 
-// ─── Today's departures ────────────────────────────────────────────
 export const getDepartures = async (
   date: string,
   db: DbConnection = defaultDb,
@@ -78,7 +75,6 @@ export const getDepartures = async (
       ),
     )
 
-// ─── Stayovers (guests staying through a date) ─────────────────────
 export const getStayovers = async (
   date: string,
   db: DbConnection = defaultDb,
@@ -101,7 +97,6 @@ export const getStayovers = async (
       ),
     )
 
-// ─── Rooms needing inspection ───────────────────────────────────────
 export const getRoomsNeedingInspection = async (
   date: string,
   db: DbConnection = defaultDb,
@@ -124,7 +119,6 @@ export const getRoomsNeedingInspection = async (
       ),
     )
 
-// ─── Occupancy summary for a date ──────────────────────────────────
 export const getOccupancySummary = async (
   date: string,
   db: DbConnection = defaultDb,

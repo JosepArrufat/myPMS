@@ -15,15 +15,10 @@ import {
 
 import { listActiveBlocksForRange } from '../db/queries/reservations/room-blocks.js';
 
-// ═══════════════════════════════════════════════════════════════════
-//  Groups — /api/groups
-// ═══════════════════════════════════════════════════════════════════
+// Groups
 export const groupsRouter = Router();
 
-// POST /api/groups
-// If the room list mixes block-sourced and inventory-sourced rooms, the service
-// returns { requiresConfirmation: true, warnings: [...] } with a 200 so the
-// client can prompt the user. Re-submit with { ...body, confirmed: true } to proceed.
+// POST /api/groups — mixed block/inventory rooms return { requiresConfirmation } for client confirmation
 groupsRouter.post(
   '/',
   authenticate,
@@ -48,9 +43,7 @@ groupsRouter.get(
   }),
 );
 
-// ═══════════════════════════════════════════════════════════════════
-//  Blocks — /api/blocks
-// ═══════════════════════════════════════════════════════════════════
+// Blocks
 export const blocksRouter = Router();
 
 // POST /api/blocks

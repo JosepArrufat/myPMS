@@ -16,7 +16,6 @@ import {
 
 type DbConnection = typeof defaultDb;
 
-// ─── Create ─────────────────────────────────────────────────────────
 export const createOverbookingPolicy = async (
   data: Omit<NewOverbookingPolicy, 'id' | 'createdAt' | 'updatedAt'>,
   db: DbConnection = defaultDb,
@@ -29,7 +28,6 @@ export const createOverbookingPolicy = async (
   return policy;
 };
 
-// ─── Update ─────────────────────────────────────────────────────────
 export const updateOverbookingPolicy = async (
   policyId: number,
   data: Partial<Pick<NewOverbookingPolicy, 'startDate' | 'endDate' | 'overbookingPercent' | 'roomTypeId'>>,
@@ -44,7 +42,6 @@ export const updateOverbookingPolicy = async (
   return policy;
 };
 
-// ─── Delete ─────────────────────────────────────────────────────────
 export const deleteOverbookingPolicy = async (
   policyId: number,
   db: DbConnection = defaultDb,
@@ -57,7 +54,6 @@ export const deleteOverbookingPolicy = async (
   return deleted;
 };
 
-// ─── List all active (future) policies ──────────────────────────────
 export const listOverbookingPolicies = async (
   db: DbConnection = defaultDb,
 ) =>
@@ -66,7 +62,6 @@ export const listOverbookingPolicies = async (
     .from(overbookingPolicies)
     .orderBy(asc(overbookingPolicies.startDate));
 
-// ─── List policies covering a date range ────────────────────────────
 export const listPoliciesForRange = async (
   startDate: string,
   endDate: string,
@@ -83,19 +78,12 @@ export const listPoliciesForRange = async (
     )
     .orderBy(asc(overbookingPolicies.startDate));
 
-// ─── Get effective overbooking percent for a room type on a date ────
-/**
- * Lookup priority:
- *   1. Specific policy for `roomTypeId` covering `date`
- *   2. Hotel-wide policy (roomTypeId IS NULL) covering `date`
- *   3. Default → 100 (no overbooking)
- */
+// Lookup: room-type-specific → hotel-wide → 100 (no overbooking)
 export const getEffectiveOverbookingPercent = async (
   roomTypeId: number,
   date: string,
   db: DbConnection = defaultDb,
 ): Promise<number> => {
-  // Try room-type-specific policy first
   const [specific] = await db
     .select({ overbookingPercent: overbookingPolicies.overbookingPercent })
     .from(overbookingPolicies)
@@ -110,7 +98,6 @@ export const getEffectiveOverbookingPercent = async (
 
   if (specific) return specific.overbookingPercent;
 
-  // Fallback to hotel-wide policy
   const [hotelWide] = await db
     .select({ overbookingPercent: overbookingPolicies.overbookingPercent })
     .from(overbookingPolicies)
@@ -125,27 +112,19 @@ export const getEffectiveOverbookingPercent = async (
 
   if (hotelWide) return hotelWide.overbookingPercent;
 
-  // No policy → no overbooking
   return 100;
 };
 
-// ─── Trim / delete expired policies (called by night audit) ─────────
-/**
- * - Policies whose endDate < businessDate → delete (fully expired).
- * - Policies whose startDate <= businessDate and endDate >= businessDate →
- *   advance startDate to businessDate + 1 (trim past portion).
- */
+// Deletes fully expired policies, trims partially expired ones
 export const trimExpiredPolicies = async (
   businessDate: string,
   db: DbConnection = defaultDb,
 ) => {
-  // Delete fully expired
   const deleted = await db
     .delete(overbookingPolicies)
     .where(sql`${overbookingPolicies.endDate} < ${businessDate}`)
     .returning();
 
-  // Trim policies that started before/on businessDate but still extend past it
   const trimmed = await db
     .update(overbookingPolicies)
     .set({

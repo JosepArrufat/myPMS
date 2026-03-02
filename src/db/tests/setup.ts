@@ -5,13 +5,9 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import * as schema from '../schema/index';
 
-// ─── Types ──────────────────────────────────────────────────────────
 export type TestDb = PostgresJsDatabase<typeof schema> & { $client: Sql };
 
-// ─── Singleton connection ───────────────────────────────────────────
-// max:1 → one TCP connection to Postgres, one query at a time.
-// Combined with Vitest singleFork mode this guarantees that only ONE
-// PostgreSQL backend is ever active, making deadlocks impossible.
+// Single connection — one query at a time, no deadlocks with singleFork
 let testConnection: ReturnType<typeof postgres> | null = null;
 let testDb: TestDb | null = null;
 
@@ -27,11 +23,7 @@ export const getTestDb = (): TestDb => {
   return testDb;
 };
 
-// ─── Concurrent pool (for race-condition tests only) ────────────────
-// Returns a SEPARATE drizzle instance backed by a pool with max:2,
-// so two transactions can truly run in parallel.  The caller MUST
-// call the returned `close()` function in afterAll to release the
-// connections and avoid leaked handles.
+// Separate pool (max:2) for race-condition tests; caller must close() in afterAll
 export const getConcurrentTestDb = () => {
   const connectionString =
     process.env.TEST_DATABASE_URL ||
@@ -79,13 +71,6 @@ const ALL_TABLES = [
   'system_config',
 ] as const;
 
-// ─── Cleanup (called in every beforeEach) ───────────────────────────
-// One single TRUNCATE statement listing every table.
-// • Atomic — Postgres acquires all AccessExclusiveLocks at once,
-//   so there is no window for another backend to interleave.
-// • RESTART IDENTITY resets every serial / bigserial sequence to 1,
-//   so auto-generated IDs are predictable across tests.
-// • CASCADE automatically handles child rows via foreign keys.
 const TABLE_LIST = ALL_TABLES.map((t) => `"${t}"`).join(', ');
 
 export const cleanupTestDb = async (db: TestDb): Promise<void> => {

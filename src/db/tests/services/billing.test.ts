@@ -329,7 +329,7 @@ describe('Billing services', () => {
     })
   })
 
-  // ─── Guard: past-invoice operations blocked ─────────────────────
+
   describe('guard – rejects past-day operations, allows refunds', () => {
     // An invoice issued before the current business date is "past"
     const PAST_DATE = '2026-01-01'
