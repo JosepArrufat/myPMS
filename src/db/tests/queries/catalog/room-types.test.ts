@@ -35,6 +35,7 @@ describe('Catalog - room types', () => {
 
   describe('listActiveRoomTypes', () => {
     it('returns only active room types ordered by sortOrder', async () => {
+      // 1. Seed two active room types and one inactive
       await createTestRoomType(db, {
         name: 'Suite',
         code: 'SUITE',
@@ -54,8 +55,10 @@ describe('Catalog - room types', () => {
         sortOrder: 0,
       });
 
+      // 2. Fetch active room types
       const result = await listActiveRoomTypes(db);
 
+      // Should return only active types, sorted by sortOrder
       expect(result).toHaveLength(2);
       expect(result[0].code).toBe('STD');
       expect(result[1].code).toBe('SUITE');
@@ -64,16 +67,21 @@ describe('Catalog - room types', () => {
 
   describe('findRoomTypeByCode', () => {
     it('finds room type by exact code', async () => {
+      // 1. Seed a room type with a known code
       await createTestRoomType(db, { code: 'DELUXE' });
 
+      // 2. Look up by that code
       const result = await findRoomTypeByCode('DELUXE', db);
 
+      // Should return exactly one match
       expect(result).toHaveLength(1);
       expect(result[0].code).toBe('DELUXE');
     });
 
     it('returns empty when code does not exist', async () => {
+      // 1. Search for a code that was never seeded
       const result = await findRoomTypeByCode('NOPE', db);
+      // Should return empty array
       expect(result).toEqual([]);
     });
   });

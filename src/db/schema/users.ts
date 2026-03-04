@@ -38,6 +38,7 @@ export const users = pgTable('users', {
   lastLogin: timestamp('last_login'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'),
 });
 export const permissions = pgTable('permissions', {
   id: serial('id').primaryKey(),

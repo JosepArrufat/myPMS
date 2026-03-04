@@ -40,6 +40,7 @@ export const agencies = pgTable('agencies', {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'),
 }, (table) => ({
   agenciesCodeIdx: uniqueIndex('idx_agencies_code').on(table.code),
   agenciesNameIdx: index('idx_agencies_name').on(table.name),

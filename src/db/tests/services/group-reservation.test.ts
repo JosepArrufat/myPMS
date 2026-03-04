@@ -34,6 +34,7 @@ beforeEach(async () => {
 describe('group reservation service', () => {
   describe('createGroupReservation', () => {
     it('creates a reservation with multiple rooms and correct pax counts', async () => {
+      // 1. Create a user, guest (contact), and two room types
       const user = await createTestUser(db)
       const guest = await createTestGuest(db) // contact person
       const rt1 = await createTestRoomType(db, {
@@ -50,6 +51,7 @@ describe('group reservation service', () => {
       const checkIn = dateHelpers.daysFromNow(10)
         const checkOut = dateHelpers.daysFromNow(13)
 
+      // 2. Seed inventory for both room types across the 3-night stay
       for (let i = 10; i <= 12; i++) {
         await createTestRoomInventory(db, {
           roomTypeId: rt1.id,
@@ -65,6 +67,7 @@ describe('group reservation service', () => {
         })
       }
 
+      // 3. Create a group reservation with 3 rooms (2 Std + 1 Dlx)
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -81,6 +84,7 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect 3 rooms, pending status, group name, summed pax, and correct total
       expect((result as any).rooms).toHaveLength(3)
       expect((result as any).reservation.status).toBe('pending')
       expect((result as any).reservation.guestNameSnapshot).toBe('Acme Corp Annual Retreat')
@@ -89,6 +93,7 @@ describe('group reservation service', () => {
     })
 
     it('defaults adultsCount to room type maxOccupancy when not specified', async () => {
+      // 1. Create user, guest, and a room type with maxOccupancy = 4
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db, { maxOccupancy: 4 })
@@ -96,6 +101,7 @@ describe('group reservation service', () => {
       const checkIn = dateHelpers.daysFromNow(20)
         const checkOut = dateHelpers.daysFromNow(21)
 
+      // 2. Seed one night of inventory
       await createTestRoomInventory(db, {
         roomTypeId: rt.id,
         date: checkIn,
@@ -103,6 +109,7 @@ describe('group reservation service', () => {
         available: 10,
       })
 
+      // 3. Create group with 2 rooms, omitting adultsCount
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -119,10 +126,12 @@ describe('group reservation service', () => {
       )
 
       
+      // Expect adultsCount defaults to 4 + 4 = 8
       expect((result as any).reservation.adultsCount).toBe(8)
     })
 
     it('rejects when availability is insufficient', async () => {
+      // 1. Create user, guest, and room type
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db)
@@ -130,6 +139,7 @@ describe('group reservation service', () => {
       const checkIn = dateHelpers.daysFromNow(30)
       const checkOut = dateHelpers.daysFromNow(31)
 
+      // 2. Seed inventory with only 1 room available
       await createTestRoomInventory(db, {
         roomTypeId: rt.id,
         date: checkIn,
@@ -137,6 +147,7 @@ describe('group reservation service', () => {
           available: 1,
       })
 
+      // 3. Attempt to book 2 rooms — should fail
       await expect(
         createGroupReservation(
           {
@@ -156,6 +167,7 @@ describe('group reservation service', () => {
     })
 
     it('allows overbooking when overbookingPercent permits', async () => {
+      // 1. Create user, guest, and room type
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db)
@@ -163,6 +175,7 @@ describe('group reservation service', () => {
       const checkIn = dateHelpers.daysFromNow(40)
       const checkOut = dateHelpers.daysFromNow(41)
 
+      // 2. Seed inventory with 0 rooms available (fully sold)
       await createTestRoomInventory(db, {
         roomTypeId: rt.id,
         date: checkIn,
@@ -171,6 +184,7 @@ describe('group reservation service', () => {
       })
 
       
+      // 3. Book 1 room with overbookingPercent=110 — should succeed
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -184,10 +198,12 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect room created despite zero availability
       expect(result.rooms).toHaveLength(1)
     })
 
     it('returns requiresConfirmation + warnings when mixing block and non-block rooms', async () => {
+      // 1. Create user, guest, and two room types
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt1 = await createTestRoomType(db, { name: 'Standard', code: 'WARN_STD' })
@@ -196,6 +212,7 @@ describe('group reservation service', () => {
       const startDate = dateHelpers.daysFromNow(60)
       const endDate = dateHelpers.daysFromNow(63)
 
+      // 2. Seed inventory for both room types across the date range
       for (let i = 60; i < 63; i++) {
         await createTestRoomInventory(db, {
           roomTypeId: rt1.id,
@@ -211,8 +228,10 @@ describe('group reservation service', () => {
         })
       }
 
+      // 3. Create a group block on the Standard type
       const block = await createGroupBlock(rt1.id, startDate, endDate, 5, 'Test Block', user.id, db)
 
+      // 4. Create group reservation mixing block room + non-block room
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -228,6 +247,7 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect requiresConfirmation flag and a warning for the non-block room
       expect(result).toHaveProperty('requiresConfirmation', true)
       if ('warnings' in result) {
         expect(result.warnings).toHaveLength(1)
@@ -238,6 +258,7 @@ describe('group reservation service', () => {
     })
 
     it('proceeds and creates the reservation when confirmed:true on mixed rooms', async () => {
+      // 1. Create user, guest, and two room types
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt1 = await createTestRoomType(db, { name: 'Standard', code: 'CONF2_STD' })
@@ -246,6 +267,7 @@ describe('group reservation service', () => {
       const startDate = dateHelpers.daysFromNow(70)
       const endDate = dateHelpers.daysFromNow(72)
 
+      // 2. Seed inventory for both room types
       for (let i = 70; i < 72; i++) {
         await createTestRoomInventory(db, {
           roomTypeId: rt1.id,
@@ -261,8 +283,10 @@ describe('group reservation service', () => {
         })
       }
 
+      // 3. Create a group block on the Standard type
       const block = await createGroupBlock(rt1.id, startDate, endDate, 5, 'Conf Block', user.id, db)
 
+      // 4. Create group reservation with confirmed:true on mixed rooms
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -279,6 +303,7 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect reservation created successfully with 2 rooms, status pending
       expect('reservation' in result).toBe(true)
       if ('reservation' in result) {
         expect((result as any).rooms).toHaveLength(2)
@@ -289,6 +314,7 @@ describe('group reservation service', () => {
 
   describe('getGroupRoomingList', () => {
     it('returns rooming list with room type details', async () => {
+      // 1. Create user, guest, and room type
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db)
@@ -296,6 +322,7 @@ describe('group reservation service', () => {
       const checkIn = dateHelpers.daysFromNow(10)
       const checkOut = dateHelpers.daysFromNow(12)
 
+      // 2. Seed inventory for the 2-night stay
       for (let i = 10; i <= 11; i++) {
         await createTestRoomInventory(db, {
           roomTypeId: rt.id,
@@ -305,6 +332,7 @@ describe('group reservation service', () => {
         })
       }
 
+      // 3. Create a group reservation with 2 rooms
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -320,7 +348,9 @@ describe('group reservation service', () => {
         db,
       )
 
+      // 4. Fetch the rooming list for the reservation
       const roomingList = await getGroupRoomingList((result as any).reservation.id, db)
+      // Expect 2 entries with room type name and code populated
       expect(roomingList).toHaveLength(2)
       expect(roomingList[0].roomTypeName).toBeTruthy()
       expect(roomingList[0].roomTypeCode).toBeTruthy()
@@ -329,6 +359,7 @@ describe('group reservation service', () => {
 
   describe('block pickup tracking', () => {
     it('creates a block, tracks pickup via blockId, and releases un-picked-up inventory', async () => {
+      // 1. Create user, guest, and room type
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db)
@@ -336,6 +367,7 @@ describe('group reservation service', () => {
       const startDate = dateHelpers.daysFromNow(10)
       const endDate = dateHelpers.daysFromNow(15)
 
+      // 2. Seed 5 nights of inventory (20 rooms each)
       for (let i = 10; i < 15; i++) {
         await createTestRoomInventory(db, {
           roomTypeId: rt.id,
@@ -345,6 +377,7 @@ describe('group reservation service', () => {
         })
       }
 
+      // 3. Create a group block holding 5 rooms
       const block = await createGroupBlock(
         rt.id,
         startDate,
@@ -355,20 +388,24 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect block type and quantity
       expect(block.blockType).toBe('group_hold')
       expect(block.quantity).toBe(5)
 
       
+      // 4. Verify availability dropped by 5 (20 → 15)
       const { checkAvailability } = await import('../../services/availability')
       const availAfterBlock = await checkAvailability(rt.id, startDate, endDate, db)
       expect(availAfterBlock.minAvailable).toBe(15) // 20 - 5 block
 
       
+      // 5. Confirm initial pickup is 0 of 5
       const pickup0 = await getBlockPickup(block.id, db)
       expect(pickup0.pickedUp).toBe(0)
       expect(pickup0.total).toBe(5)
       expect(pickup0.remaining).toBe(5)
 
+      // 6. Pick up 3 rooms from the block
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -385,18 +422,22 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect 3 rooms created
       expect(result.rooms).toHaveLength(3)
 
       
+      // 7. Availability unchanged at 15 (block rooms, not general inventory)
       const availAfterPickup = await checkAvailability(rt.id, startDate, endDate, db)
       expect(availAfterPickup.minAvailable).toBe(15)
 
       
+      // 8. Pickup is now 3, remaining is 2
       const pickup3 = await getBlockPickup(block.id, db)
       expect(pickup3.pickedUp).toBe(3)
       expect(pickup3.remaining).toBe(2) // 5 - 3
 
       
+      // 9. Book 1 room outside the block (from general inventory)
       await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -410,24 +451,29 @@ describe('group reservation service', () => {
       )
 
       
+      // 10. General availability drops to 14
       const availAfterUnrelated = await checkAvailability(rt.id, startDate, endDate, db)
       expect(availAfterUnrelated.minAvailable).toBe(14)
 
       
+      // 11. Block pickup unchanged at 3
       const pickupStill3 = await getBlockPickup(block.id, db)
       expect(pickupStill3.pickedUp).toBe(3)
 
       
+      // 12. Release the block — returns 2 un-picked-up slots
       const released = await releaseGroupBlock(block.id, user.id, db)
       expect(released.releasedAt).toBeTruthy()
       expect(released.releasedSlots).toBe(2)
       expect(released.pickedUp).toBe(3)
 
       
+      // 13. Availability restored to 16 (14 + 2 released)
       const avail = await checkAvailability(rt.id, startDate, endDate, db)
       expect(avail.minAvailable).toBe(16)
 
       
+      // 14. Releasing again should fail
       await expect(
         releaseGroupBlock(block.id, user.id, db),
       ).rejects.toThrow('block not found or already released')
@@ -437,20 +483,24 @@ describe('group reservation service', () => {
 
   describe('guard – rejects past-day operations', () => {
     it('rejects createGroupBlock with a past startDate (unhappy path)', async () => {
+      // 1. Create user and room type
       const user = await createTestUser(db)
       const rt = await createTestRoomType(db)
 
+      // 2. Attempt to create a block starting yesterday — should fail
       await expect(
         createGroupBlock(rt.id, YESTERDAY, BUSINESS_DATE, 3, 'Past Block', user.id, db),
       ).rejects.toThrow('Block start date')
     })
 
     it('allows createGroupBlock with a future startDate (happy path)', async () => {
+      // 1. Create user and room type
       const user = await createTestUser(db)
       const rt = await createTestRoomType(db)
       const startDate = dateHelpers.daysFromNow(10)
       const endDate = dateHelpers.daysFromNow(15)
 
+      // 2. Seed inventory for the block dates
       for (let i = 10; i < 15; i++) {
         await createTestRoomInventory(db, {
           roomTypeId: rt.id,
@@ -460,15 +510,19 @@ describe('group reservation service', () => {
         })
       }
 
+      // 3. Create a block starting in the future
       const block = await createGroupBlock(rt.id, startDate, endDate, 3, 'Future Block', user.id, db)
+      // Expect block created with quantity 3
       expect(block.quantity).toBe(3)
     })
 
     it('rejects createGroupReservation with a past checkInDate (unhappy path)', async () => {
+      // 1. Create user, guest, and room type
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db)
 
+      // 2. Seed inventory for yesterday
       await createTestRoomInventory(db, {
         roomTypeId: rt.id,
         date: YESTERDAY,
@@ -476,6 +530,7 @@ describe('group reservation service', () => {
         available: 10,
       })
 
+      // 3. Attempt to book with past check-in — should fail
       await expect(
         createGroupReservation(
           {
@@ -492,12 +547,14 @@ describe('group reservation service', () => {
     })
 
     it('allows createGroupReservation with a future checkInDate (happy path)', async () => {
+      // 1. Create user, guest, and room type with future dates
       const user = await createTestUser(db)
       const guest = await createTestGuest(db)
       const rt = await createTestRoomType(db)
       const checkIn = dateHelpers.daysFromNow(5)
       const checkOut = dateHelpers.daysFromNow(6)
 
+      // 2. Seed inventory for the check-in date
       await createTestRoomInventory(db, {
         roomTypeId: rt.id,
         date: checkIn,
@@ -505,6 +562,7 @@ describe('group reservation service', () => {
         available: 10,
       })
 
+      // 3. Create the group reservation
       const result = await createGroupReservation(
         {
           contactGuestId: guest.id,
@@ -517,6 +575,7 @@ describe('group reservation service', () => {
         db,
       )
 
+      // Expect reservation created with pending status
       expect((result as any).reservation.status).toBe('pending')
     })
   })

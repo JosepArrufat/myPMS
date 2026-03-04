@@ -12,6 +12,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db as defaultDb } from './index.js'
 import { roomInventory } from './schema/roomInventory.js'
 import { overbookingPolicies } from './schema/overbooking.js'
+import { auditLog } from './schema/audit.js'
 
 type DbConnection = typeof defaultDb
 export type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -161,4 +162,35 @@ export const incrementInventory = async (
         sql`${roomInventory.date} < ${checkOut}`,
       ),
     )
+}
+
+export const writeAudit = async (
+  tableName: string,
+  recordId: string,
+  action: 'insert' | 'update' | 'delete',
+  opts: {
+    userId?: number
+    oldValues?: Record<string, unknown>
+    newValues?: Record<string, unknown>
+    ipAddress?: string
+  },
+  tx: TxOrDb,
+) => {
+  const changedFields =
+    opts.oldValues && opts.newValues
+      ? Object.keys(opts.newValues).filter(
+          (k) => JSON.stringify(opts.oldValues![k]) !== JSON.stringify(opts.newValues![k]),
+        )
+      : undefined
+
+  await tx.insert(auditLog).values({
+    tableName,
+    recordId: String(recordId),
+    action,
+    oldValues: opts.oldValues ?? null,
+    newValues: opts.newValues ?? null,
+    changedFields: changedFields ?? null,
+    userId: opts.userId ?? null,
+    ipAddress: opts.ipAddress ?? null,
+  })
 }

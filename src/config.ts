@@ -1,9 +1,25 @@
 import 'dotenv/config';
+import { z } from 'zod';
 import type { MigrationConfig } from "drizzle-orm/migrator";
+
+const envSchema = z.object({
+  PLATFORM: z.string().min(1),
+  POLKA_KEY: z.string().min(1),
+  DB_URL: z.string().url(),
+  secret: z.string().min(8),
+  PORT: z.string().optional(),
+});
+
+const parsed = envSchema.safeParse(process.env);
+if (!parsed.success) {
+  console.error('❌ Invalid environment variables:', parsed.error.format());
+  process.exit(1);
+}
+const env = parsed.data;
 
 type APIConfig = {
   platform: string,
-  polkaKey: string, /*for future webhoook*/
+  polkaKey: string,
 };
 
 type DBConfig = {
@@ -16,31 +32,21 @@ type Config = {
   db: DBConfig;
   secret: string;
 };
+
 const migrationConfig: MigrationConfig = {
   migrationsFolder: "./src/db/migrations",
 };
 
 export const configApi: APIConfig = {
-    platform: getRequiredEnv('PLATFORM'),
-    polkaKey: getRequiredEnv('POLKA_KEY'),
-}
-
-function getRequiredEnv(key: string): string {
-  const val = process.env[key];
-  if (typeof val === 'undefined' || val === '') {
-    throw new Error(`Environment variable ${key} is required`);
-  }
-  return val;
-}
-
+  platform: env.PLATFORM,
+  polkaKey: env.POLKA_KEY,
+};
 
 export const config: Config = {
   api: configApi,
   db: {
-    dbURL: getRequiredEnv('DB_URL'),
+    dbURL: env.DB_URL,
     migrationConfig: migrationConfig,
   },
-  secret: getRequiredEnv("secret"),
+  secret: env.secret,
 };
-
-

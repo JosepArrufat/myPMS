@@ -1,6 +1,7 @@
 import {
   pgTable,
   date,
+  varchar,
   integer,
   decimal,
   timestamp,
@@ -46,7 +47,7 @@ export const dailyRevenue = pgTable('daily_revenue', {
 }));
 
 export const monthlyRevenue = pgTable('monthly_revenue', {
-  month: date('month').primaryKey(),
+  month: varchar('month', { length: 7 }).primaryKey(),
   
   totalReservations: integer('total_reservations'),
   totalRevenue: decimal('total_revenue', { precision: 12, scale: 2 }),

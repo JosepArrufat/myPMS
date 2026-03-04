@@ -38,9 +38,11 @@ describe('Catalog - room type rates', () => {
 
   describe('findRateForStay', () => {
     it('finds rates overlapping the stay window', async () => {
+      // 1. Create a room type and rate plan
       const rt = await createTestRoomType(db);
       const rp = await createTestRatePlan(db);
 
+      // 2. Insert a March rate and a May rate
       await db.insert(roomTypeRates).values({
         roomTypeId: rt.id,
         ratePlanId: rp.id,
@@ -56,6 +58,7 @@ describe('Catalog - room type rates', () => {
         price: '200.00',
       });
 
+      // 3. Query for a stay within March
       const result = await findRateForStay(
         rt.id,
         rp.id,
@@ -64,14 +67,17 @@ describe('Catalog - room type rates', () => {
         db,
       );
 
+      // Only the March rate should match
       expect(result).toHaveLength(1);
       expect(result[0].price).toBe('150.00');
     });
 
     it('returns empty when no rate covers the stay', async () => {
+      // 1. Create room type and rate plan with no rates inserted
       const rt = await createTestRoomType(db);
       const rp = await createTestRatePlan(db);
 
+      // 2. Query for a stay in January
       const result = await findRateForStay(
         rt.id,
         rp.id,
@@ -79,16 +85,19 @@ describe('Catalog - room type rates', () => {
         '2026-01-05',
         db,
       );
+      // No rates should match
       expect(result).toEqual([]);
     });
   });
 
   describe('listRatesForPlan', () => {
     it('lists all rates for a plan ordered by roomType and startDate', async () => {
+      // 1. Create two room types and a rate plan
       const rtA = await createTestRoomType(db, { code: 'RTA' });
       const rtB = await createTestRoomType(db, { code: 'RTB' });
       const rp = await createTestRatePlan(db);
 
+      // 2. Insert rates — RTB first, then RTA
       await db.insert(roomTypeRates).values({
         roomTypeId: rtB.id,
         ratePlanId: rp.id,
@@ -104,8 +113,10 @@ describe('Catalog - room type rates', () => {
         price: '120.00',
       });
 
+      // 3. List all rates for the plan
       const result = await listRatesForPlan(rp.id, db);
 
+      // Should be ordered by roomType: RTA before RTB
       expect(result).toHaveLength(2);
       expect(result[0].roomTypeId).toBe(rtA.id);
       expect(result[1].roomTypeId).toBe(rtB.id);
@@ -114,8 +125,10 @@ describe('Catalog - room type rates', () => {
 
   describe('FK constraints', () => {
     it('rejects a rate with non-existent roomTypeId', async () => {
+      // 1. Create only a rate plan (no room type)
       const rp = await createTestRatePlan(db);
 
+      // 2. Attempt insert with bogus roomTypeId
       await expect(
         db.insert(roomTypeRates).values({
           roomTypeId: 999999,
@@ -124,12 +137,15 @@ describe('Catalog - room type rates', () => {
           endDate: '2026-03-31',
           price: '100.00',
         }),
+      // Should throw due to FK violation
       ).rejects.toThrow();
     });
 
     it('rejects a rate with non-existent ratePlanId', async () => {
+      // 1. Create only a room type (no rate plan)
       const rt = await createTestRoomType(db);
 
+      // 2. Attempt insert with bogus ratePlanId
       await expect(
         db.insert(roomTypeRates).values({
           roomTypeId: rt.id,
@@ -138,6 +154,7 @@ describe('Catalog - room type rates', () => {
           endDate: '2026-03-31',
           price: '100.00',
         }),
+      // Should throw due to FK violation
       ).rejects.toThrow();
     });
   });

@@ -31,15 +31,21 @@ describe('Identity - role-permissions', () => {
   });
 
   it('lists permissions for a role and roles for a permission', async () => {
+    // 1. Create a permission
     const [p] = await db.insert(permissions).values({ resource: 'rooms', action: 'view' }).returning();
 
+    // 2. Assign the same permission to two different roles
     await db.insert(rolePermissions).values({ role: 'manager', permissionId: p.id });
     await db.insert(rolePermissions).values({ role: 'front_desk', permissionId: p.id });
 
+    // 3. List permissions for the manager role
     const perms = await listPermissionsForRole('manager', db);
+    // Manager has exactly one permission
     expect(perms.length).toBe(1);
 
+    // 4. List roles that hold this permission
     const roles = await listRolesForPermission(p.id, db);
+    // At least manager + front_desk
     expect(roles.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   ilike,
+  isNull,
   ne,
   or,
 } from 'drizzle-orm'
@@ -15,6 +16,7 @@ import { guests } from '../schema/guests.js'
 import type { NewGuest } from '../schema/guests.js'
 import { reservations } from '../schema/reservations.js'
 import { invoices } from '../schema/invoices.js'
+import { writeAudit } from '../utils.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -26,7 +28,7 @@ export const searchGuestsByDocument = async (
   db
     .select()
     .from(guests)
-    .where(eq(guests.idDocumentNumber, documentNumber))
+    .where(and(eq(guests.idDocumentNumber, documentNumber), isNull(guests.deletedAt)))
     .orderBy(asc(guests.lastName), asc(guests.firstName))
 
 export const searchGuestsByPhone = async (
@@ -36,7 +38,7 @@ export const searchGuestsByPhone = async (
   db
     .select()
     .from(guests)
-    .where(eq(guests.phone, phone))
+    .where(and(eq(guests.phone, phone), isNull(guests.deletedAt)))
     .orderBy(asc(guests.lastName), asc(guests.firstName))
 
 export const searchGuestsByEmail = async (
@@ -46,7 +48,7 @@ export const searchGuestsByEmail = async (
   db
     .select()
     .from(guests)
-    .where(eq(guests.email, email))
+    .where(and(eq(guests.email, email), isNull(guests.deletedAt)))
     .orderBy(asc(guests.lastName), asc(guests.firstName))
 
 export const searchGuestsFuzzy = async (
@@ -57,12 +59,15 @@ export const searchGuestsFuzzy = async (
     .select()
     .from(guests)
     .where(
-      or(
-        ilike(guests.firstName, `%${term}%`),
-        ilike(guests.lastName, `%${term}%`),
-        ilike(guests.email, `%${term}%`),
-        ilike(guests.phone, `%${term}%`),
-        ilike(guests.idDocumentNumber, `%${term}%`),
+      and(
+        or(
+          ilike(guests.firstName, `%${term}%`),
+          ilike(guests.lastName, `%${term}%`),
+          ilike(guests.email, `%${term}%`),
+          ilike(guests.phone, `%${term}%`),
+          ilike(guests.idDocumentNumber, `%${term}%`),
+        ),
+        isNull(guests.deletedAt),
       ),
     )
     .orderBy(asc(guests.lastName), asc(guests.firstName))
@@ -101,7 +106,7 @@ export const listVipGuests = async (db: TxOrDb = defaultDb) =>
   db
     .select()
     .from(guests)
-    .where(eq(guests.vipStatus, true))
+    .where(and(eq(guests.vipStatus, true), isNull(guests.deletedAt)))
     .orderBy(asc(guests.lastName), asc(guests.firstName))
 
 export const getGuestHistory = async (
@@ -173,6 +178,7 @@ export const findDuplicates = async (
       and(
         ne(guests.id, guestId),
         or(...conditions),
+        isNull(guests.deletedAt),
       ),
     )
     .orderBy(asc(guests.lastName), asc(guests.firstName))
@@ -235,6 +241,10 @@ export const mergeGuests = async (
     }
 
     await tx.delete(guests).where(eq(guests.id, secondaryGuestId))
+
+    await writeAudit('guests', secondaryGuestId, 'delete', {
+      oldValues: { mergedInto: primaryGuestId },
+    }, tx)
 
     const [merged] = await tx
       .select()

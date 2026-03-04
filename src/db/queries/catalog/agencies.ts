@@ -1,10 +1,12 @@
 import {
   and,
   asc,
+  count,
   eq,
   gte,
   ilike,
   isNotNull,
+  isNull,
   lte,
   sql,
 } from 'drizzle-orm';
@@ -17,6 +19,7 @@ import type { NewAgency } from '../../schema/agencies.js';
 import {
   reservations,
 } from '../../schema/reservations.js';
+import { sanitiseAgencyInput } from '../../../utils/sanitise.js';
 
 type DbConnection = typeof defaultDb;
 
@@ -26,7 +29,7 @@ export const createAgency = async (
 ) => {
   const [agency] = await db
     .insert(agencies)
-    .values(data)
+    .values(sanitiseAgencyInput(data))
     .returning()
 
   return agency
@@ -39,7 +42,7 @@ export const updateAgency = async (
 ) => {
   const [agency] = await db
     .update(agencies)
-    .set(data)
+    .set(sanitiseAgencyInput(data))
     .where(eq(agencies.id, agencyId))
     .returning()
 
@@ -50,20 +53,38 @@ export const findAgencyByCode = async (code: string, db: DbConnection = defaultD
   db
     .select()
     .from(agencies)
-    .where(eq(agencies.code, code))
+    .where(and(eq(agencies.code, code), isNull(agencies.deletedAt)))
     .limit(1);
 
-export const searchAgencies = async (term: string, includeInactive = false, db: DbConnection = defaultDb) =>
-  db
+export const searchAgencies = async (
+  term: string,
+  includeInactive = false,
+  opts: { limit?: number; offset?: number } = {},
+  db: DbConnection = defaultDb,
+) => {
+  const where = includeInactive
+    ? and(ilike(agencies.name, `%${term}%`), isNull(agencies.deletedAt))
+    : and(
+        ilike(agencies.name, `%${term}%`),
+        eq(agencies.isActive, true),
+        isNull(agencies.deletedAt),
+      )
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(agencies)
+    .where(where)
+
+  const data = await db
     .select()
     .from(agencies)
-    .where(includeInactive
-      ? ilike(agencies.name, `%${term}%`)
-      : and(
-          ilike(agencies.name, `%${term}%`),
-          eq(agencies.isActive, true),
-        ))
-    .orderBy(agencies.name);
+    .where(where)
+    .orderBy(agencies.name)
+    .limit(opts.limit ?? 50)
+    .offset(opts.offset ?? 0)
+
+  return { data, total }
+}
 
 export const listAgencyReservations = async (
   agencyId: number,
@@ -81,3 +102,21 @@ export const listAgencyReservations = async (
         )
       : eq(reservations.agencyId, agencyId))
     .orderBy(asc(reservations.checkInDate));
+
+export const softDeleteAgency = async (agencyId: number, db: DbConnection = defaultDb) => {
+  const [agency] = await db
+    .update(agencies)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(agencies.id, agencyId), isNull(agencies.deletedAt)))
+    .returning()
+  return agency
+}
+
+export const restoreAgency = async (agencyId: number, db: DbConnection = defaultDb) => {
+  const [agency] = await db
+    .update(agencies)
+    .set({ deletedAt: null })
+    .where(eq(agencies.id, agencyId))
+    .returning()
+  return agency
+}

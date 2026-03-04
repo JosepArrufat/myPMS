@@ -9,6 +9,7 @@ import { db as defaultDb } from '../index.js'
 import { reservations } from '../schema/reservations.js'
 import { rooms } from '../schema/rooms.js'
 import { housekeepingTasks } from '../schema/housekeeping.js'
+import { writeAudit } from '../utils.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -38,6 +39,12 @@ export const checkoutReservation = async (
     if (!reservation) {
       throw new Error('reservation not found or not checked in')
     }
+
+    await writeAudit('reservations', reservation.id, 'update', {
+      userId,
+      oldValues: { status: 'checked_in' },
+      newValues: { status: 'checked_out' },
+    }, tx)
 
     await tx
       .update(rooms)

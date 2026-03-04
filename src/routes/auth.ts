@@ -7,7 +7,7 @@ import { BadRequestError, UnauthorizedError, NotFoundError } from '../errors.js'
 import { config } from '../config.js';
 import { checkPasswordHash, makeJWT } from '../auth.js';
 
-import { findUserByEmail, listActiveUsersByRole, searchUsers } from '../db/queries/identity/users.js';
+import { findUserByEmail, listActiveUsersByRole, searchUsers, softDeleteUser, restoreUser } from '../db/queries/identity/users.js';
 import { listPermissions } from '../db/queries/identity/permissions.js';
 import { listPermissionsForRole } from '../db/queries/identity/role-permissions.js';
 
@@ -101,6 +101,34 @@ router.get(
     const { role } = req.params;
     const perms = await listPermissionsForRole(role as any);
     res.json({ permissions: perms });
+  }),
+);
+
+// DELETE /api/users/:id
+router.delete(
+  '/users/:id',
+  authenticate,
+  requireRole('admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid user id');
+    const user = await softDeleteUser(id);
+    if (!user) throw new NotFoundError('User not found');
+    res.json({ message: 'User deleted' });
+  }),
+);
+
+// POST /api/users/:id/restore
+router.post(
+  '/users/:id/restore',
+  authenticate,
+  requireRole('admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid user id');
+    const user = await restoreUser(id);
+    if (!user) throw new NotFoundError('User not found');
+    res.json({ user });
   }),
 );
 

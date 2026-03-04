@@ -10,6 +10,7 @@ import { db as defaultDb } from '../index.js'
 import { reservations } from '../schema/reservations.js'
 import { rooms } from '../schema/rooms.js'
 import { assertCheckInDate } from '../guards.js'
+import { writeAudit } from '../utils.js'
 
 type DbConnection = typeof defaultDb
 type TxOrDb = DbConnection | PgTransaction<any, any, any>
@@ -105,6 +106,12 @@ export const checkInReservation = async (
     if (!reservation) {
       throw new Error('reservation not found or not confirmed')
     }
+
+    await writeAudit('reservations', reservation.id, 'update', {
+      userId,
+      oldValues: { status: 'confirmed' },
+      newValues: { status: 'checked_in' },
+    }, tx)
 
     return { reservation, room }
   })

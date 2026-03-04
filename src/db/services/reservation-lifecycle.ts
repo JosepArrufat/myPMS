@@ -20,6 +20,7 @@ import {
   invoices,
   payments,
 } from '../schema/invoices.js'
+import { writeAudit } from '../utils.js'
 
 type ReservationStatus = (typeof reservationStatusEnum.enumValues)[number]
 type DbConnection = typeof defaultDb
@@ -111,25 +112,33 @@ export const confirmReservation = async (
   userId: number,
   db: TxOrDb = defaultDb,
 ) => {
-  const [reservation] = await db
-    .update(reservations)
-    .set({
-      status: 'confirmed',
-      modifiedBy: userId,
-    })
-    .where(
-      and(
-        eq(reservations.id, reservationId),
-        eq(reservations.status, 'pending'),
-      ),
-    )
-    .returning()
+  return db.transaction(async (tx) => {
+    const [reservation] = await tx
+      .update(reservations)
+      .set({
+        status: 'confirmed',
+        modifiedBy: userId,
+      })
+      .where(
+        and(
+          eq(reservations.id, reservationId),
+          eq(reservations.status, 'pending'),
+        ),
+      )
+      .returning()
 
-  if (!reservation) {
-    throw new Error('reservation not found or cannot be confirmed')
-  }
+    if (!reservation) {
+      throw new Error('reservation not found or cannot be confirmed')
+    }
 
-  return reservation
+    await writeAudit('reservations', reservation.id, 'update', {
+      userId,
+      oldValues: { status: 'pending' },
+      newValues: { status: 'confirmed' },
+    }, tx)
+
+    return reservation
+  })
 }
 
 export const checkIn = async (
@@ -315,6 +324,12 @@ export const cancelReservation = async (
       }
     }
 
+    await writeAudit('reservations', reservation.id, 'update', {
+      userId,
+      oldValues: { status: 'pending' },
+      newValues: { status: 'cancelled', cancellationReason: reason },
+    }, tx)
+
     return reservation
   })
 }
@@ -360,6 +375,13 @@ export const markNoShow = async (
           AND ri.date < ${reservation.checkOutDate}
       `)
     }
+
+    await writeAudit('reservations', reservation.id, 'update', {
+      userId,
+      oldValues: { status: 'confirmed' },
+      newValues: { status: 'no_show' },
+    }, tx)
+
     return reservation
   })
 }

@@ -63,52 +63,64 @@ describe('Reservation lifecycle service', () => {
 
   describe('canTransition', () => {
     it('allows pending → confirmed', () => {
+      // Valid: reservations must be confirmed before any further action
       expect(canTransition('pending', 'confirmed')).toBe(true)
     })
 
     it('allows pending → cancelled', () => {
+      // Valid: unconfirmed reservations can still be cancelled
       expect(canTransition('pending', 'cancelled')).toBe(true)
     })
 
     it('allows confirmed → checked_in', () => {
+      // Valid: confirmed guests are eligible to check in
       expect(canTransition('confirmed', 'checked_in')).toBe(true)
     })
 
     it('allows confirmed → no_show', () => {
+      // Valid: confirmed reservations can be flagged as no-show
       expect(canTransition('confirmed', 'no_show')).toBe(true)
     })
 
     it('blocks pending → checked_in (must confirm first)', () => {
+      // Invalid: skipping the confirmation step is not allowed
       expect(canTransition('pending', 'checked_in')).toBe(false)
     })
 
     it('blocks checked_out → checked_in (terminal state)', () => {
+      // Invalid: checked_out is terminal — no further transitions allowed
       expect(canTransition('checked_out', 'checked_in')).toBe(false)
     })
 
     it('blocks cancelled → confirmed (terminal state)', () => {
+      // Invalid: cancelled is terminal — cannot reactivate
       expect(canTransition('cancelled', 'confirmed')).toBe(false)
     })
   })
 
   describe('confirmReservation', () => {
     it('transitions pending → confirmed', async () => {
+      // 1. Create a pending reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'pending',
       })
 
+      // 2. Confirm the reservation
       const result = await confirmReservation(reservation.id, userId, db)
 
+      // Status should now be confirmed
       expect(result.status).toBe('confirmed')
     })
 
     it('rejects if not pending', async () => {
+      // 1. Create a reservation already in confirmed state
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 2. Attempt to confirm again — should be rejected
       await expect(
         confirmReservation(reservation.id, userId, db),
       ).rejects.toThrow('cannot be confirmed')
@@ -117,46 +129,56 @@ describe('Reservation lifecycle service', () => {
 
   describe('checkIn', () => {
     it('transitions confirmed → checked_in and marks room occupied', async () => {
+      // 1. Create an available, inspected room
       const room = await createTestRoom(db, {
         status: 'available',
         cleanlinessStatus: 'inspected',
       })
+      // 2. Create a confirmed reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 3. Check the guest in
       const result = await checkIn(reservation.id, room.id, userId, db)
 
+      // Reservation becomes checked_in, room becomes occupied
       expect(result.reservation.status).toBe('checked_in')
       expect(result.room.status).toBe('occupied')
     })
 
     it('rejects if room is dirty', async () => {
+      // 1. Create a room that is available but dirty
       const room = await createTestRoom(db, {
         status: 'available',
         cleanlinessStatus: 'dirty',
       })
+      // 2. Create a confirmed reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 3. Attempt check-in — should fail because room isn't clean
       await expect(
         checkIn(reservation.id, room.id, userId, db),
       ).rejects.toThrow('not available or not clean')
     })
 
     it('rejects if reservation is pending (not confirmed)', async () => {
+      // 1. Create a clean, available room
       const room = await createTestRoom(db, {
         status: 'available',
         cleanlinessStatus: 'clean',
       })
+      // 2. Create a pending (unconfirmed) reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'pending',
       })
 
+      // 3. Attempt check-in — should fail because reservation isn't confirmed
       await expect(
         checkIn(reservation.id, room.id, userId, db),
       ).rejects.toThrow('not found or not confirmed')
@@ -165,22 +187,27 @@ describe('Reservation lifecycle service', () => {
 
   describe('checkOut', () => {
     it('transitions checked_in → checked_out, creates housekeeping task', async () => {
+      // 1. Create an occupied room (guest is currently staying)
       const room = await createTestRoom(db, {
         status: 'occupied',
         cleanlinessStatus: 'clean',
       })
+      // 2. Create a checked-in reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'checked_in',
         checkOutDate: '2026-03-15',
       })
 
+      // 3. Check out the guest
       const result = await checkOut(reservation.id, room.id, userId, db)
 
+      // Reservation becomes checked_out, a checkout cleaning task is created
       expect(result.reservation.status).toBe('checked_out')
       expect(result.task.taskType).toBe('checkout_cleaning')
       expect(result.task.status).toBe('pending')
 
+      // Room should now be marked dirty for housekeeping
       const [updatedRoom] = await db
         .select()
         .from(rooms)
@@ -190,12 +217,14 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('rejects if not checked in', async () => {
+      // 1. Create a room and a confirmed (not checked-in) reservation
       const room = await createTestRoom(db)
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 2. Attempt check-out — should fail because guest hasn't checked in
       await expect(
         checkOut(reservation.id, room.id, userId, db),
       ).rejects.toThrow('not checked in')
@@ -204,6 +233,7 @@ describe('Reservation lifecycle service', () => {
 
   describe('cancelReservation', () => {
     it('cancels and releases inventory', async () => {
+      // 1. Create a room type with inventory (10 total, 9 available)
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, {
         roomTypeId: roomType.id,
@@ -212,6 +242,7 @@ describe('Reservation lifecycle service', () => {
         available: 9,
       })
 
+      // 2. Create a confirmed reservation with a room assignment
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -225,6 +256,7 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-03-02',
       })
 
+      // 3. Cancel the reservation with no fee
       const result = await cancelReservation(
         reservation.id,
         userId,
@@ -233,16 +265,19 @@ describe('Reservation lifecycle service', () => {
         db,
       )
 
+      // Status should be cancelled with the reason recorded
       expect(result.status).toBe('cancelled')
       expect(result.cancellationReason).toBe('guest request')
     })
 
     it('issues refund minus cancellation fee', async () => {
+      // 1. Create a confirmed reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 2. Create a fully-paid invoice ($200) with a credit card payment
       const invoice = await createTestInvoice(db, {
         reservationId: reservation.id,
         guestId,
@@ -258,6 +293,7 @@ describe('Reservation lifecycle service', () => {
         paymentMethod: 'credit_card',
       })
 
+      // 3. Cancel with a $50 cancellation fee
       const result = await cancelReservation(
         reservation.id,
         userId,
@@ -268,6 +304,7 @@ describe('Reservation lifecycle service', () => {
 
       expect(result.status).toBe('cancelled')
 
+      // Refund should be $200 paid − $50 fee = $150
       const refunds = await db
         .select()
         .from(payments)
@@ -279,11 +316,13 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('rejects if already cancelled', async () => {
+      // 1. Create a reservation that is already cancelled
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'cancelled',
       })
 
+      // 2. Attempt to cancel again — should be rejected
       await expect(
         cancelReservation(reservation.id, userId, 'too late', '0', db),
       ).rejects.toThrow('cannot be cancelled')
@@ -292,22 +331,27 @@ describe('Reservation lifecycle service', () => {
 
   describe('markNoShow', () => {
     it('marks confirmed reservation as no_show', async () => {
+      // 1. Create a confirmed reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 2. Mark as no-show
       const result = await markNoShow(reservation.id, userId, db)
 
+      // Status should now be no_show
       expect(result.status).toBe('no_show')
     })
 
     it('rejects if not confirmed', async () => {
+      // 1. Create a pending reservation (not yet confirmed)
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'pending',
       })
 
+      // 2. Attempt no-show — should fail because only confirmed can be no-show
       await expect(
         markNoShow(reservation.id, userId, db),
       ).rejects.toThrow('not confirmed')
@@ -316,6 +360,7 @@ describe('Reservation lifecycle service', () => {
 
   describe('detectNoShows', () => {
     it('auto-detects overdue confirmed reservations', async () => {
+      // 1. Create a confirmed reservation with a check-in date 2 days ago
       const pastDate = dateHelpers.daysAgo(2)
       await createTestReservation(db, userId, {
         guestId,
@@ -324,13 +369,16 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: dateHelpers.tomorrow(),
       })
 
+      // 2. Run no-show detection for today
       const results = await detectNoShows(dateHelpers.today(), userId, db)
 
+      // Overdue reservation should be automatically flagged as no_show
       expect(results.length).toBe(1)
       expect(results[0].status).toBe('no_show')
     })
 
     it('ignores reservations with future check-in', async () => {
+      // 1. Create a confirmed reservation with check-in 5 days from now
       await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -338,21 +386,26 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: dateHelpers.daysFromNow(8),
       })
 
+      // 2. Run no-show detection for today
       const results = await detectNoShows(dateHelpers.today(), userId, db)
 
+      // Future reservation should not be flagged
       expect(results.length).toBe(0)
     })
   })
 
   describe('getReservationStatus', () => {
     it('returns status with allowed transitions', async () => {
+      // 1. Create a confirmed reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
       })
 
+      // 2. Query its lifecycle status
       const result = await getReservationStatus(reservation.id, db)
 
+      // Confirmed allows check-in, cancellation, and no-show — but not check-out
       expect(result.status).toBe('confirmed')
       expect(result.allowedTransitions).toContain('checked_in')
       expect(result.allowedTransitions).toContain('cancelled')
@@ -361,33 +414,40 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('returns empty transitions for terminal states', async () => {
+      // 1. Create a checked-out reservation (terminal state)
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'checked_out',
       })
 
+      // 2. Query its lifecycle status
       const result = await getReservationStatus(reservation.id, db)
 
+      // Terminal states have no further transitions
       expect(result.allowedTransitions).toHaveLength(0)
     })
   })
 
   describe('Full orchestrated flow', () => {
     it('pending → confirmed → checked_in → checked_out', async () => {
+      // 1. Create an available, inspected room
       const room = await createTestRoom(db, {
         status: 'available',
         cleanlinessStatus: 'inspected',
       })
 
+      // 2. Create a pending reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'pending',
         checkOutDate: '2026-04-10',
       })
 
+      // 3. Confirm the reservation
       const confirmed = await confirmReservation(reservation.id, userId, db)
       expect(confirmed.status).toBe('confirmed')
 
+      // 4. Check in the guest
       const { reservation: checkedIn } = await checkIn(
         reservation.id,
         room.id,
@@ -396,28 +456,33 @@ describe('Reservation lifecycle service', () => {
       )
       expect(checkedIn.status).toBe('checked_in')
 
+      // 5. Check out the guest
       const { reservation: checkedOut } = await checkOut(
         reservation.id,
         room.id,
         userId,
         db,
       )
+      // Complete lifecycle: reservation reaches terminal checked_out state
       expect(checkedOut.status).toBe('checked_out')
     })
   })
 
   describe('cancelReservation – cancellation policy', () => {
     it('refundable rate within deadline → releases inventory & refunds', async () => {
+      // 1. Create a refundable rate plan with no deadline and 0% fee
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: false,
         cancellationDeadlineHours: null,
         cancellationFeePercent: '0.00',
       })
+      // 2. Set up inventory for 3 dates (each with 10 total / 9 available)
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-01', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-02', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-03', capacity: 10, available: 9 })
 
+      // 3. Create a confirmed reservation linked to the refundable rate
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -432,6 +497,7 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-06-04',
       })
 
+      // 4. Create a fully-paid invoice ($300)
       const invoice = await createTestInvoice(db, {
         reservationId: reservation.id,
         guestId,
@@ -442,14 +508,17 @@ describe('Reservation lifecycle service', () => {
       })
       await createTestPayment(db, { invoiceId: invoice.id, amount: '300.00', paymentMethod: 'credit_card' })
 
+      // 5. Cancel the reservation with reason "plans changed"
       const result = await cancelReservation(reservation.id, userId, 'plans changed', '0', db)
       expect(result.status).toBe('cancelled')
 
+      // Inventory should be released back to 10 available
       const inv = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, '2026-06-01'))
       )
       expect(inv[0].available).toBe(10)
 
+      // Full refund of $300 should be issued (0% fee)
       const refunds = await db.select().from(payments).where(eq(payments.invoiceId, invoice.id))
       const refund = refunds.find((p) => p.isRefund)
       expect(refund).toBeTruthy()
@@ -457,15 +526,18 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('non-refundable rate → does NOT release inventory, no refund', async () => {
+      // 1. Create a non-refundable rate plan (100% cancellation fee)
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: true,
         cancellationDeadlineHours: null,
         cancellationFeePercent: '100.00',
       })
+      // 2. Set up inventory for 2 dates (each with 10 total / 9 available)
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-07-01', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-07-02', capacity: 10, available: 9 })
 
+      // 3. Create a confirmed reservation on the NRF rate
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -480,6 +552,7 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-07-03',
       })
 
+      // 4. Create a fully-paid invoice ($200)
       const invoice = await createTestInvoice(db, {
         reservationId: reservation.id,
         guestId,
@@ -490,25 +563,30 @@ describe('Reservation lifecycle service', () => {
       })
       await createTestPayment(db, { invoiceId: invoice.id, amount: '200.00', paymentMethod: 'credit_card' })
 
+      // 5. Cancel the NRF reservation
       const result = await cancelReservation(reservation.id, userId, 'NRF cancel', '0', db)
       expect(result.status).toBe('cancelled')
 
+      // Inventory should NOT be released (still 9 available)
       const inv = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, '2026-07-01'))
       )
       expect(inv[0].available).toBe(9)
 
+      // No refund should exist
       const refunds = await db.select().from(payments).where(eq(payments.invoiceId, invoice.id))
       const refund = refunds.find((p) => p.isRefund)
       expect(refund).toBeUndefined()
     })
 
     it('refundable rate past deadline → no release, no refund', async () => {
+      // 1. Create a refundable rate with a 168h (7-day) deadline and 100% fee if past
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: false,
         cancellationDeadlineHours: 168,
         cancellationFeePercent: '100.00',
       })
+      // 2. Set up inventory for tomorrow and day after (check-in is tomorrow, inside deadline)
       const roomType = await createTestRoomType(db)
       const checkIn = dateHelpers.tomorrow()
       const checkOut = dateHelpers.daysFromNow(3)
@@ -521,6 +599,7 @@ describe('Reservation lifecycle service', () => {
         available: 9,
       })
 
+      // 3. Create a confirmed reservation on this rate plan
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -535,6 +614,7 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: checkOut,
       })
 
+      // 4. Create a fully-paid invoice ($200)
       const invoice = await createTestInvoice(db, {
         reservationId: reservation.id,
         guestId,
@@ -545,23 +625,28 @@ describe('Reservation lifecycle service', () => {
       })
       await createTestPayment(db, { invoiceId: invoice.id, amount: '200.00', paymentMethod: 'credit_card' })
 
+      // 5. Cancel after the 7-day deadline has passed
       const result = await cancelReservation(reservation.id, userId, 'too late', '0', db)
       expect(result.status).toBe('cancelled')
 
+      // Inventory should NOT be released (past deadline penalty)
       const inv = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, checkIn))
       )
       expect(inv[0].available).toBe(9)
 
+      // No refund — 100% penalty applies
       const refunds = await db.select().from(payments).where(eq(payments.invoiceId, invoice.id))
       const refund = refunds.find((p) => p.isRefund)
       expect(refund).toBeUndefined()
     })
 
     it('no rate plan linked → fully refundable (releases inventory)', async () => {
+      // 1. Create a room type with inventory (10 total / 9 available)
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-08-01', capacity: 10, available: 9 })
 
+      // 2. Create a confirmed reservation with NO rate plan
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -576,8 +661,10 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-08-02',
       })
 
+      // 3. Cancel — should default to fully refundable behavior
       await cancelReservation(reservation.id, userId, 'no rate plan', '0', db)
 
+      // Inventory released back to 10
       const inv = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, '2026-08-01'))
       )
@@ -588,15 +675,18 @@ describe('Reservation lifecycle service', () => {
 
   describe('markNoShow – cancellation policy', () => {
     it('refundable multi-night → releases nights 2+ only (first night penalty)', async () => {
+      // 1. Create a refundable rate plan with no deadline
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: false,
         cancellationDeadlineHours: null,
       })
+      // 2. Set up inventory for 3 nights (each 10 total / 9 available)
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-10', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-11', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-12', capacity: 10, available: 9 })
 
+      // 3. Create a confirmed 3-night reservation with room assignment
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -611,14 +701,17 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-06-13',
       })
 
+      // 4. Mark as no-show
       const result = await markNoShow(reservation.id, userId, db)
       expect(result.status).toBe('no_show')
 
+      // Night 1 (penalty night) stays at 9 — not released
       const inv1 = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, '2026-06-10'))
       )
       expect(inv1[0].available).toBe(9)
 
+      // Nights 2 and 3 released back to 10
       const inv2 = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, '2026-06-11'))
       )
@@ -631,13 +724,16 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('refundable 1-night stay → no inventory released (first night = only night)', async () => {
+      // 1. Create a refundable rate plan
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: false,
         cancellationDeadlineHours: null,
       })
+      // 2. Set up inventory for 1 night
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-06-20', capacity: 10, available: 9 })
 
+      // 3. Create a confirmed 1-night reservation
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -652,6 +748,7 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-06-21',
       })
 
+      // 4. Mark as no-show
       const result = await markNoShow(reservation.id, userId, db)
       expect(result.status).toBe('no_show')
 
@@ -663,16 +760,19 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('non-refundable rate → NO inventory released at all', async () => {
+      // 1. Create a non-refundable rate plan (100% fee)
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: true,
         cancellationDeadlineHours: null,
         cancellationFeePercent: '100.00',
       })
+      // 2. Set up inventory for 3 nights
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-07-10', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-07-11', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-07-12', capacity: 10, available: 9 })
 
+      // 3. Create a confirmed 3-night reservation on the NRF rate
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -687,9 +787,11 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-07-13',
       })
 
+      // 4. Mark as no-show
       const result = await markNoShow(reservation.id, userId, db)
       expect(result.status).toBe('no_show')
 
+      // All 3 nights should remain at 9 — NRF means no inventory release
       for (const date of ['2026-07-10', '2026-07-11', '2026-07-12']) {
         const inv = await db.select().from(roomInventory).where(
           and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, date))
@@ -699,15 +801,18 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('NRF with deadline (NRF7) → no release when within deadline window', async () => {
+      // 1. Create an NRF rate with a 7-day (168h) deadline
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: true,
         cancellationDeadlineHours: 168, // 7 days
         cancellationFeePercent: '100.00',
       })
+      // 2. Set up inventory for 2 nights
       const roomType = await createTestRoomType(db)
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-09-01', capacity: 10, available: 9 })
       await createTestRoomInventory(db, { roomTypeId: roomType.id, date: '2026-09-02', capacity: 10, available: 9 })
 
+      // 3. Create a confirmed reservation on the NRF7 rate
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -722,9 +827,11 @@ describe('Reservation lifecycle service', () => {
         checkOutDate: '2026-09-03',
       })
 
+      // 4. Mark as no-show
       const result = await markNoShow(reservation.id, userId, db)
       expect(result.status).toBe('no_show')
 
+      // Both nights remain at 9 — NRF within deadline means no release
       const inv = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomType.id), eq(roomInventory.date, '2026-09-01'))
       )
@@ -736,10 +843,12 @@ describe('Reservation lifecycle service', () => {
     })
 
     it('multi-room no-show refundable → releases nights 2+ for each room type', async () => {
+      // 1. Create a refundable rate plan
       const ratePlan = await createTestRatePlan(db, {
         isNonRefundable: false,
         cancellationDeadlineHours: null,
       })
+      // 2. Create two room types (Standard and Deluxe) with inventory for 2 nights
       const roomTypeA = await createTestRoomType(db, { name: 'Standard' })
       const roomTypeB = await createTestRoomType(db, { name: 'Deluxe' })
 
@@ -748,6 +857,7 @@ describe('Reservation lifecycle service', () => {
       await createTestRoomInventory(db, { roomTypeId: roomTypeB.id, date: '2026-08-10', capacity: 5, available: 4 })
       await createTestRoomInventory(db, { roomTypeId: roomTypeB.id, date: '2026-08-11', capacity: 5, available: 4 })
 
+      // 3. Create a confirmed reservation with 2x Standard + 1x Deluxe rooms
       const reservation = await createTestReservation(db, userId, {
         guestId,
         status: 'confirmed',
@@ -759,9 +869,11 @@ describe('Reservation lifecycle service', () => {
       await createTestReservationRoom(db, userId, { reservationId: reservation.id, roomTypeId: roomTypeA.id, checkInDate: '2026-08-10', checkOutDate: '2026-08-12' })
       await createTestReservationRoom(db, userId, { reservationId: reservation.id, roomTypeId: roomTypeB.id, checkInDate: '2026-08-10', checkOutDate: '2026-08-12' })
 
+      // 4. Mark as no-show
       const result = await markNoShow(reservation.id, userId, db)
       expect(result.status).toBe('no_show')
 
+      // Night 1 (penalty): Standard stays at 8, Deluxe stays at 4
       const invA1 = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomTypeA.id), eq(roomInventory.date, '2026-08-10'))
       )
@@ -771,6 +883,7 @@ describe('Reservation lifecycle service', () => {
       )
       expect(invB1[0].available).toBe(4) 
 
+      // Night 2: released — Standard back to 10 (8+2 rooms), Deluxe back to 5 (4+1 room)
       const invA2 = await db.select().from(roomInventory).where(
         and(eq(roomInventory.roomTypeId, roomTypeA.id), eq(roomInventory.date, '2026-08-11'))
       )

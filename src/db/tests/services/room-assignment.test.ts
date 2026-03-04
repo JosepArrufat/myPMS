@@ -50,15 +50,18 @@ describe('Room assignment services', () => {
 
   describe('assignRoom', () => {
     it('creates assignment rows for every date of the stay', async () => {
+      // 1. Create a room type and a room
       const roomType = await createTestRoomType(db)
       const room = await createTestRoom(db, { roomTypeId: roomType.id })
 
+      // 2. Create a reservation for a 3-night stay (May 1–4)
       const reservation = await createTestReservation(db, userId, {
         guestId,
         checkInDate: '2026-05-01',
         checkOutDate: '2026-05-04',
       })
 
+      // 3. Link the reservation to the room type
       await createTestReservationRoom(db, userId, {
         reservationId: reservation.id,
         roomTypeId: roomType.id,
@@ -66,6 +69,7 @@ describe('Room assignment services', () => {
         checkOutDate: '2026-05-04',
       })
 
+      // 4. Assign the room to the reservation
       const assignments = await assignRoom(
         reservation.id,
         room.id,
@@ -73,7 +77,9 @@ describe('Room assignment services', () => {
         db,
       )
 
+      // Should produce one assignment row per night
       expect(assignments).toHaveLength(3)
+      // Dates should cover May 1, 2, 3 (checkout date excluded)
       expect(assignments.map((a: any) => a.date).sort()).toEqual([
         '2026-05-01',
         '2026-05-02',
@@ -82,15 +88,18 @@ describe('Room assignment services', () => {
     })
 
     it('updates reservation_rooms with assigned room', async () => {
+      // 1. Create a room type and a room
       const roomType = await createTestRoomType(db)
       const room = await createTestRoom(db, { roomTypeId: roomType.id })
 
+      // 2. Create a reservation for Jun 1–3
       const reservation = await createTestReservation(db, userId, {
         guestId,
         checkInDate: '2026-06-01',
         checkOutDate: '2026-06-03',
       })
 
+      // 3. Link the reservation to the room type
       await createTestReservationRoom(db, userId, {
         reservationId: reservation.id,
         roomTypeId: roomType.id,
@@ -98,6 +107,7 @@ describe('Room assignment services', () => {
         checkOutDate: '2026-06-03',
       })
 
+      // 4. Assign the room
       await assignRoom(
         reservation.id,
         room.id,
@@ -105,20 +115,24 @@ describe('Room assignment services', () => {
         db,
       )
 
+      // 5. Query reservation_rooms to verify the link
       const [rr] = await db
         .select()
         .from(reservationRooms)
         .where(eq(reservationRooms.reservationId, reservation.id))
 
+      // Should set roomId, assignedAt, and assignedBy
       expect(rr.roomId).toBe(room.id)
       expect(rr.assignedAt).toBeTruthy()
       expect(rr.assignedBy).toBe(userId)
     })
 
     it('rejects double-assign on same room + date', async () => {
+      // 1. Create a room type and a room
       const roomType = await createTestRoomType(db)
       const room = await createTestRoom(db, { roomTypeId: roomType.id })
 
+      // 2. Create first reservation (Jul 1–3) with room link
       const res1 = await createTestReservation(db, userId, {
         guestId,
         checkInDate: '2026-07-01',
@@ -131,6 +145,7 @@ describe('Room assignment services', () => {
         checkOutDate: '2026-07-03',
       })
 
+      // 3. Assign room to first reservation
       await assignRoom(
         res1.id,
         room.id,
@@ -138,6 +153,7 @@ describe('Room assignment services', () => {
         db,
       )
 
+      // 4. Create second reservation overlapping Jul 2–4
       const res2 = await createTestReservation(db, userId, {
         guestId,
         checkInDate: '2026-07-02',
@@ -150,6 +166,7 @@ describe('Room assignment services', () => {
         checkOutDate: '2026-07-04',
       })
 
+      // 5. Attempt to assign same room — should reject (conflict on Jul 2)
       await expect(
         assignRoom(res2.id, room.id, userId, db),
       ).rejects.toThrow()
@@ -158,9 +175,11 @@ describe('Room assignment services', () => {
 
   describe('unassignRoom', () => {
     it('removes all assignment rows and clears reservation_rooms', async () => {
+      // 1. Create a room type and a room
       const roomType = await createTestRoomType(db)
       const room = await createTestRoom(db, { roomTypeId: roomType.id })
 
+      // 2. Create a reservation (Aug 1–3) with room link
       const reservation = await createTestReservation(db, userId, {
         guestId,
         checkInDate: '2026-08-01',
@@ -174,6 +193,7 @@ describe('Room assignment services', () => {
         checkOutDate: '2026-08-03',
       })
 
+      // 3. Assign the room to the reservation
       await assignRoom(
         reservation.id,
         room.id,
@@ -181,12 +201,14 @@ describe('Room assignment services', () => {
         db,
       )
 
+      // 4. Unassign the room
       await unassignRoom(
         reservation.id,
         room.id,
         db,
       )
 
+      // 5. Verify all assignment rows are deleted
       const remaining = await db
         .select()
         .from(roomAssignments)
@@ -194,11 +216,13 @@ describe('Room assignment services', () => {
 
       expect(remaining).toHaveLength(0)
 
+      // Verify reservation_rooms link is cleared
       const [rr] = await db
         .select()
         .from(reservationRooms)
         .where(eq(reservationRooms.reservationId, reservation.id))
 
+      // roomId and assignedAt should be reset to null
       expect(rr.roomId).toBeNull()
       expect(rr.assignedAt).toBeNull()
     })

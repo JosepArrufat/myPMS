@@ -70,6 +70,7 @@ export const guests = pgTable('guests', {
   // Metadata
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'),
 }, (table) => ({
   emailIdx: index('idx_guests_email').on(table.email).where(sql`${table.email} IS NOT NULL`),
   nameIdx: index('idx_guests_name').on(table.lastName, table.firstName),

@@ -49,18 +49,23 @@ describe('Agency Queries', () => {
 
   describe('findAgencyByCode', () => {
     it('should find agency by exact code', async () => {
+      // 1. Seed two agencies with distinct codes
       await createTestAgency(db, { code: 'AGN001', name: 'Test Agency' });
       await createTestAgency(db, { code: 'AGN002', name: 'Other Agency' });
 
+      // 2. Search by the first agency's code
       const result = await findAgencyByCode('AGN001', db);
 
+      // Should return exactly one match with the correct name
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Test Agency');
     });
 
     it('should return empty when code not found', async () => {
+      // 1. Search for a code that was never seeded
       const result = await findAgencyByCode('NONEXIST', db);
 
+      // Should return an empty array
       expect(result).toEqual([]);
     });
   });
@@ -82,29 +87,37 @@ describe('Agency Queries', () => {
     });
 
     it('should find agencies by partial name match', async () => {
-      const results = await searchAgencies('booking', false, db);
+      // 1. Search for partial name 'booking' (active only)
+      const results = await searchAgencies('booking', false, {}, db);
 
-      expect(results).toHaveLength(1);
-      expect(results[0].name).toBe('Booking.com');
+      // Should return only the active matching agency
+      expect(results.data).toHaveLength(1);
+      expect(results.data[0].name).toBe('Booking.com');
     });
 
     it('should exclude inactive agencies by default', async () => {
-      const results = await searchAgencies('booking', false, db);
+      // 1. Search with includeInactive = false
+      const results = await searchAgencies('booking', false, {}, db);
 
-      expect(results).toHaveLength(1);
-      expect(results[0].isActive).toBe(true);
+      // Should return only active matches
+      expect(results.data).toHaveLength(1);
+      expect(results.data[0].isActive).toBe(true);
     });
 
     it('should include inactive agencies when requested', async () => {
-      const results = await searchAgencies('booking', true, db);
+      // 1. Search with includeInactive = true
+      const results = await searchAgencies('booking', true, {}, db);
 
-      expect(results).toHaveLength(2);
+      // Should return both active and inactive matches
+      expect(results.data).toHaveLength(2);
     });
 
     it('should return empty when no match', async () => {
-      const results = await searchAgencies('xyz', false, db);
+      // 1. Search for a term that matches nothing
+      const results = await searchAgencies('xyz', false, {}, db);
 
-      expect(results).toEqual([]);
+      // Should return empty data array
+      expect(results.data).toEqual([]);
     });
   });
 
@@ -120,6 +133,7 @@ describe('Agency Queries', () => {
     });
 
     it('should list all reservations for agency when no date range', async () => {
+      // 1. Create two reservations for the agency in different months
       await createTestReservation(db, baseUser.id, {
         guestId: guest.id,
         agencyId: agency.id,
@@ -133,12 +147,15 @@ describe('Agency Queries', () => {
         checkOutDate: '2026-02-05',
       });
 
+      // 2. List reservations with no date filter
       const results = await listAgencyReservations(agency.id, undefined, db);
 
+      // Should return both reservations
       expect(results).toHaveLength(2);
     });
 
     it('should filter by date range when provided', async () => {
+      // 1. Create two reservations in different months
       await createTestReservation(db, baseUser.id, {
         guestId: guest.id,
         agencyId: agency.id,
@@ -152,25 +169,30 @@ describe('Agency Queries', () => {
         checkOutDate: '2026-03-05',
       });
 
+      // 2. List with a January-only date range
       const results = await listAgencyReservations(
         agency.id,
         { from: '2026-01-01', to: '2026-01-31' },
         db
       );
 
+      // Should return only the January reservation
       expect(results).toHaveLength(1);
       expect(results[0].checkInDate).toBe('2026-01-10');
     });
 
     it('should return empty when agency has no reservations', async () => {
+      // 1. List reservations for agency with no bookings
       const results = await listAgencyReservations(agency.id, undefined, db);
 
+      // Should return empty array
       expect(results).toEqual([]);
     });
   });
 
   describe('createAgency', () => {
     it('creates an agency and returns it', async () => {
+      // 1. Create a new agency with full details
       const agency = await createAgency(
         {
           name: 'New Travel Co',
@@ -182,6 +204,7 @@ describe('Agency Queries', () => {
         db,
       );
 
+      // Should return with a generated id and correct fields
       expect(agency.id).toBeTruthy();
       expect(agency.name).toBe('New Travel Co');
       expect(agency.code).toBe('NTC001');
@@ -190,14 +213,17 @@ describe('Agency Queries', () => {
 
   describe('updateAgency', () => {
     it('updates agency fields', async () => {
+      // 1. Seed a default agency
       const ag = await createTestAgency(db);
 
+      // 2. Update commission and active status
       const updated = await updateAgency(
         ag.id,
         { commissionPercent: '15.00', isActive: false },
         db,
       );
 
+      // Should reflect the new values
       expect(updated.commissionPercent).toBe('15.00');
       expect(updated.isActive).toBe(false);
     });

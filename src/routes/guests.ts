@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { BadRequestError, NotFoundError } from '../errors.js';
+import { parsePagination, paginate } from '../utils/pagination.js';
 
 import {
   searchGuests,
@@ -10,6 +11,8 @@ import {
   findGuestByEmail,
   createGuest,
   updateGuest,
+  softDeleteGuest,
+  restoreGuest,
 } from '../db/queries/catalog/guests.js';
 
 import {
@@ -101,8 +104,9 @@ router.get(
   authenticate,
   asyncHandler(async (req: Request, res: Response) => {
     const q = (req.query.q as string) || '';
-    const guests = await searchGuests(q);
-    res.json({ guests });
+    const pg = parsePagination(req);
+    const { data, total } = await searchGuests(q, { limit: pg.limit, offset: pg.offset });
+    res.json(paginate(data, total, pg));
   }),
 );
 
@@ -187,6 +191,30 @@ router.post(
     }
     const merged = await mergeGuests(primaryGuestId, secondaryGuestId);
     res.json({ guest: merged });
+  }),
+);
+
+// DELETE /api/guests/:id
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole('admin', 'manager'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const guest = await softDeleteGuest(req.params.id as string);
+    if (!guest) throw new NotFoundError('Guest not found');
+    res.json({ message: 'Guest deleted' });
+  }),
+);
+
+// POST /api/guests/:id/restore
+router.post(
+  '/:id/restore',
+  authenticate,
+  requireRole('admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const guest = await restoreGuest(req.params.id as string);
+    if (!guest) throw new NotFoundError('Guest not found');
+    res.json({ guest });
   }),
 );
 

@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { BadRequestError, NotFoundError } from '../errors.js';
+import { parsePagination, paginate } from '../utils/pagination.js';
 
 import {
   searchAgencies,
@@ -10,6 +11,8 @@ import {
   createAgency,
   updateAgency,
   listAgencyReservations,
+  softDeleteAgency,
+  restoreAgency,
 } from '../db/queries/catalog/agencies.js';
 
 const router = Router();
@@ -21,8 +24,9 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const q = (req.query.q as string) || '';
     const includeInactive = req.query.includeInactive === 'true';
-    const agencies = await searchAgencies(q, includeInactive);
-    res.json({ agencies });
+    const pg = parsePagination(req);
+    const { data, total } = await searchAgencies(q, includeInactive, { limit: pg.limit, offset: pg.offset });
+    res.json(paginate(data, total, pg));
   }),
 );
 
@@ -78,6 +82,34 @@ router.get(
 
     const reservations = await listAgencyReservations(id, range);
     res.json({ reservations });
+  }),
+);
+
+// DELETE /api/agencies/:id
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole('admin', 'manager', 'sales'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid agency id');
+    const agency = await softDeleteAgency(id);
+    if (!agency) throw new NotFoundError('Agency not found');
+    res.json({ message: 'Agency deleted' });
+  }),
+);
+
+// POST /api/agencies/:id/restore
+router.post(
+  '/:id/restore',
+  authenticate,
+  requireRole('admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new BadRequestError('Invalid agency id');
+    const agency = await restoreAgency(id);
+    if (!agency) throw new NotFoundError('Agency not found');
+    res.json({ agency });
   }),
 );
 

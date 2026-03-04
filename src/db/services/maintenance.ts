@@ -1,6 +1,7 @@
 import {
   and,
   eq,
+  isNull,
   sql,
 } from 'drizzle-orm'
 
@@ -60,7 +61,7 @@ export const assignRequest = async (
   const [assignee] = await db
     .select({ role: users.role })
     .from(users)
-    .where(eq(users.id, assigneeId))
+    .where(and(eq(users.id, assigneeId), isNull(users.deletedAt)))
     .limit(1)
 
   if (!assignee) throw new Error('assignee user not found')
