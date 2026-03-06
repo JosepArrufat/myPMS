@@ -2,7 +2,18 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
-import { BadRequestError } from '../errors.js';
+import { validate } from '../middleware/validate.js';
+import {
+  checkAvailabilityQuery,
+  roomTypesAvailQuery,
+  blocksQuery,
+  overbookQuery,
+  dayAvailParams,
+  dayAvailQuery,
+  seedInventoryBody,
+  seedAllBody,
+  roomAvailParams,
+} from '../schemas/availability.js';
 
 import {
   checkAvailability,
@@ -25,20 +36,10 @@ const router = Router();
 router.get(
   '/check',
   authenticate,
+  validate({ query: checkAvailabilityQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { roomTypeId, checkIn, checkOut } = req.query as Record<string, string>;
-    if (!roomTypeId || !checkIn || !checkOut) {
-      throw new BadRequestError('roomTypeId, checkIn and checkOut are required');
-    }
-    const ci = new Date(checkIn);
-    const co = new Date(checkOut);
-    if (isNaN(ci.getTime()) || isNaN(co.getTime())) {
-      throw new BadRequestError('checkIn and checkOut must be valid ISO dates (YYYY-MM-DD)');
-    }
-    if (ci >= co) {
-      throw new BadRequestError('checkOut must be after checkIn');
-    }
-    const result = await checkAvailability(Number(roomTypeId), checkIn, checkOut);
+    const { roomTypeId, checkIn, checkOut } = req.query as unknown as { roomTypeId: number; checkIn: string; checkOut: string };
+    const result = await checkAvailability(roomTypeId, checkIn, checkOut);
     res.json(result);
   }),
 );
@@ -47,19 +48,9 @@ router.get(
 router.get(
   '/room-types',
   authenticate,
+  validate({ query: roomTypesAvailQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { checkIn, checkOut } = req.query as Record<string, string>;
-    if (!checkIn || !checkOut) {
-      throw new BadRequestError('checkIn and checkOut are required');
-    }
-    const ci = new Date(checkIn);
-    const co = new Date(checkOut);
-    if (isNaN(ci.getTime()) || isNaN(co.getTime())) {
-      throw new BadRequestError('checkIn and checkOut must be valid ISO dates (YYYY-MM-DD)');
-    }
-    if (ci >= co) {
-      throw new BadRequestError('checkOut must be after checkIn');
-    }
+    const { checkIn, checkOut } = req.query as unknown as { checkIn: string; checkOut: string };
     const types = await getAvailableRoomTypes(checkIn, checkOut);
     res.json({ roomTypes: types });
   }),
@@ -69,11 +60,9 @@ router.get(
 router.get(
   '/blocks',
   authenticate,
+  validate({ query: blocksQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { checkIn, checkOut } = req.query as Record<string, string>;
-    if (!checkIn || !checkOut) {
-      throw new BadRequestError('checkIn and checkOut are required');
-    }
+    const { checkIn, checkOut } = req.query as unknown as { checkIn: string; checkOut: string };
     const blocks = await getBlockedRooms(checkIn, checkOut);
     res.json({ blocks });
   }),
@@ -84,28 +73,16 @@ router.get(
   '/overbook',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ query: overbookQuery }),
   asyncHandler(async (req: Request, res: Response) => {
     const { roomTypeId, checkIn, checkOut, requestedRooms, overbookingPercent } =
-      req.query as Record<string, string>;
-    if (!roomTypeId || !checkIn || !checkOut || !requestedRooms) {
-      throw new BadRequestError(
-        'roomTypeId, checkIn, checkOut and requestedRooms are required',
-      );
-    }
-    const ci = new Date(checkIn);
-    const co = new Date(checkOut);
-    if (isNaN(ci.getTime()) || isNaN(co.getTime())) {
-      throw new BadRequestError('checkIn and checkOut must be valid ISO dates (YYYY-MM-DD)');
-    }
-    if (ci >= co) {
-      throw new BadRequestError('checkOut must be after checkIn');
-    }
+      req.query as unknown as { roomTypeId: number; checkIn: string; checkOut: string; requestedRooms: number; overbookingPercent?: number };
     const result = await canOverbook(
-      Number(roomTypeId),
+      roomTypeId,
       checkIn,
       checkOut,
-      Number(requestedRooms),
-      overbookingPercent ? Number(overbookingPercent) : undefined,
+      requestedRooms,
+      overbookingPercent,
     );
     res.json(result);
   }),
@@ -115,21 +92,13 @@ router.get(
 router.get(
   '/day/:date',
   authenticate,
+  validate({ params: dayAvailParams, query: dayAvailQuery }),
   asyncHandler(async (req: Request, res: Response) => {
     const date = req.params.date as string;
-    const roomTypeId = req.query.roomTypeId
-      ? Number(req.query.roomTypeId)
-      : undefined;
-
-    if (!roomTypeId) {
-      throw new BadRequestError('roomTypeId query param is required');
-    }
-
-    // Use next day as endDate for a single-day view
+    const roomTypeId = (req.query as unknown as { roomTypeId: number }).roomTypeId;
     const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
     const endDate = nextDay.toISOString().slice(0, 10);
-
     const availability = await getAvailabilityByDay(roomTypeId, date, endDate);
     res.json({ availability });
   }),
@@ -145,11 +114,9 @@ inventoryRouter.post(
   '/seed',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ body: seedInventoryBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { roomTypeId, startDate, endDate, capacity } = req.body;
-    if (!roomTypeId || !startDate || !endDate || !capacity) {
-      throw new BadRequestError('roomTypeId, startDate, endDate and capacity are required');
-    }
     const inserted = await seedInventory(roomTypeId, startDate, endDate, capacity);
     res.status(201).json({ count: inserted.length, rows: inserted });
   }),
@@ -160,11 +127,9 @@ inventoryRouter.post(
   '/seed-all',
   authenticate,
   requireRole('admin'),
+  validate({ body: seedAllBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { startDate, endDate } = req.body;
-    if (!startDate || !endDate) {
-      throw new BadRequestError('startDate and endDate are required');
-    }
     const results = await seedAllRoomTypeInventory(startDate, endDate);
     res.status(201).json({ results });
   }),
@@ -179,10 +144,9 @@ const roomAvailabilityRouter = Router();
 roomAvailabilityRouter.get(
   '/:id/available-now',
   authenticate,
+  validate({ params: roomAvailParams }),
   asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid room id');
-
     const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
     const available = await isRoomAvailableNow(id, date);
     res.json({ roomId: id, date, available });

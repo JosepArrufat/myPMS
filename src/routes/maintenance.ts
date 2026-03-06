@@ -2,8 +2,18 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { validate } from '../middleware/validate.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
-import { BadRequestError } from '../errors.js';
+import {
+  numericRequestParams,
+  createRequestBody,
+  assignRequestBody,
+  completeRequestBody,
+  outOfOrderBody,
+  returnToServiceBody,
+  updateBlockBody,
+  scheduledQuery,
+} from '../schemas/maintenance.js';
 
 import {
   createRequest,
@@ -28,6 +38,7 @@ router.post(
   '/',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ body: createRequestBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const request = await createRequest(req.body, user.id);
@@ -40,12 +51,11 @@ router.post(
   '/:id/assign',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ params: numericRequestParams, body: assignRequestBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid request id');
     const { assigneeId } = req.body;
-    if (!assigneeId) throw new BadRequestError('assigneeId is required');
     const request = await assignRequest(id, assigneeId, user.id);
     res.json({ request });
   }),
@@ -56,12 +66,11 @@ router.post(
   '/:id/complete',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ params: numericRequestParams, body: completeRequestBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid request id');
     const { resolutionNotes, cost } = req.body;
-    if (!resolutionNotes) throw new BadRequestError('resolutionNotes is required');
     const request = await completeRequest(id, resolutionNotes, cost, user.id);
     res.json({ request });
   }),
@@ -72,12 +81,10 @@ router.post(
   '/out-of-order',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ body: outOfOrderBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { roomId, startDate, endDate, reason } = req.body;
-    if (!roomId || !startDate || !endDate || !reason) {
-      throw new BadRequestError('roomId, startDate, endDate and reason are required');
-    }
     const block = await putRoomOutOfOrder(roomId, startDate, endDate, reason, user.id);
     res.status(201).json({ block });
   }),
@@ -88,10 +95,10 @@ router.post(
   '/return-to-service',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ body: returnToServiceBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { roomId } = req.body;
-    if (!roomId) throw new BadRequestError('roomId is required');
     await returnRoomToService(roomId, user.id);
     res.json({ ok: true, roomId });
   }),
@@ -102,14 +109,11 @@ router.patch(
   '/out-of-order/:id',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ params: numericRequestParams, body: updateBlockBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid block id');
     const { startDate, endDate, reason } = req.body;
-    if (!startDate && !endDate && !reason) {
-      throw new BadRequestError('At least one of startDate, endDate, or reason is required');
-    }
     const block = await updateOutOfOrderBlock(id, { startDate, endDate, reason }, user.id);
     res.json({ block });
   }),
@@ -120,10 +124,10 @@ router.delete(
   '/out-of-order/:id',
   authenticate,
   requireRole('admin', 'manager', 'maintenance'),
+  validate({ params: numericRequestParams }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid block id');
     const block = await releaseOutOfOrderBlock(id, user.id);
     res.json({ block });
   }),
@@ -143,9 +147,9 @@ router.get(
 router.get(
   '/scheduled',
   authenticate,
+  validate({ query: scheduledQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { from } = req.query as { from?: string };
-    if (!from) throw new BadRequestError('from query param is required');
+    const { from } = req.query as unknown as { from: string };
     const requests = await listScheduledRequests(from);
     res.json({ requests });
   }),

@@ -2,8 +2,20 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { validate } from '../middleware/validate.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
 import { BadRequestError, NotFoundError } from '../errors.js';
+import {
+  createReservationBody,
+  setBusinessDateBody,
+  checkInBody,
+  checkOutBody,
+  cancelBody,
+  rateOverrideBody,
+  roomIdBody,
+  stayWindowQuery,
+  roomConflictQuery,
+} from '../schemas/reservations.js';
 
 import {
   createReservation,
@@ -68,10 +80,9 @@ router.put(
   '/business-date',
   authenticate,
   requireRole('admin'),
+  validate({ body: setBusinessDateBody }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { date } = req.body;
-    if (!date) throw new BadRequestError('date is required (YYYY-MM-DD)');
-    const businessDate = await setBusinessDate(date);
+    const businessDate = await setBusinessDate(req.body.date);
     res.json({ businessDate });
   }),
 );
@@ -80,12 +91,10 @@ router.post(
   '/',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: createReservationBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { reservation, rooms, overbookingPercent } = req.body;
-    if (!reservation || !rooms || !Array.isArray(rooms) || rooms.length === 0) {
-      throw new BadRequestError('reservation and rooms[] are required');
-    }
     reservation.createdBy = user.id;
     const result = await createReservation({ reservation, rooms, overbookingPercent });
     res.status(201).json({ reservation: result });
@@ -122,9 +131,9 @@ router.get(
 router.get(
   '/stay-window',
   authenticate,
+  validate({ query: stayWindowQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { from, to } = req.query as { from?: string; to?: string };
-    if (!from || !to) throw new BadRequestError('from and to query params are required');
+    const { from, to } = req.query as { from: string; to: string };
     const reservations = await listReservationsForStayWindow(from, to);
     res.json({ reservations });
   }),
@@ -170,11 +179,10 @@ router.post(
   '/:id/check-in',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: checkInBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { roomId, guestId } = req.body;
-    if (!roomId) throw new BadRequestError('roomId is required');
-    if (!guestId) throw new BadRequestError('guestId is required at check-in');
     const found = await findReservation(req.params.id as string);
     if (!found) throw new NotFoundError('Reservation not found');
     await guardPastReservation(found.checkOutDate);
@@ -187,10 +195,10 @@ router.post(
   '/:id/check-out',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: checkOutBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { roomId } = req.body;
-    if (!roomId) throw new BadRequestError('roomId is required');
     const found = await findReservation(req.params.id as string);
     if (!found) throw new NotFoundError('Reservation not found');
     await guardPastReservation(found.checkOutDate);
@@ -203,10 +211,10 @@ router.post(
   '/:id/cancel',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: cancelBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { reason, cancellationFee } = req.body;
-    if (!reason) throw new BadRequestError('reason is required');
     const found = await findReservation(req.params.id as string);
     if (!found) throw new NotFoundError('Reservation not found');
     await guardPastReservation(found.checkOutDate);
@@ -249,12 +257,10 @@ router.post(
   '/:id/rate-override',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ body: rateOverrideBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { startDate, endDate, newRate, reservationRoomId } = req.body;
-    if (!startDate || !endDate || !newRate) {
-      throw new BadRequestError('startDate, endDate and newRate are required');
-    }
     const found = await findReservation(req.params.id as string);
     if (!found) throw new NotFoundError('Reservation not found');
     const result = await overrideReservationRate(
@@ -294,12 +300,10 @@ router.post(
   '/:id/assign-room',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: roomIdBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { roomId } = req.body;
-    if (!roomId) {
-      throw new BadRequestError('roomId is required');
-    }
     const assignments = await assignRoom(
       req.params.id as string,
       roomId,
@@ -313,11 +317,9 @@ router.delete(
   '/:id/unassign-room',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: roomIdBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { roomId } = req.body;
-    if (!roomId) {
-      throw new BadRequestError('roomId is required');
-    }
     const result = await unassignRoom(
       req.params.id as string,
       roomId,
@@ -344,12 +346,10 @@ export const roomConflictsRouter = Router();
 roomConflictsRouter.get(
   '/',
   authenticate,
+  validate({ query: roomConflictQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { roomId, from, to } = req.query as { roomId?: string; from?: string; to?: string };
-    if (!roomId || !from || !to) {
-      throw new BadRequestError('roomId, from and to query params are required');
-    }
-    const conflicts = await findRoomConflicts(Number(roomId), from, to);
+    const { roomId, from, to } = req.query as unknown as { roomId: number; from: string; to: string };
+    const conflicts = await findRoomConflicts(roomId, from, to);
     res.json({ conflicts });
   }),
 );

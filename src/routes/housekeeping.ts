@@ -2,8 +2,19 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { validate } from '../middleware/validate.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
-import { BadRequestError } from '../errors.js';
+import {
+  numericTaskParams,
+  createTaskBody,
+  updateTaskTypeBody,
+  assignTaskBody,
+  dailyBoardBody,
+  taskRangeQuery,
+  taskRoomParams,
+  taskAssigneeParams,
+  inspectParams,
+} from '../schemas/housekeeping.js';
 
 import {
   createTask,
@@ -29,6 +40,7 @@ router.post(
   '/tasks',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ body: createTaskBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const task = await createTask(req.body, user.id);
@@ -49,12 +61,11 @@ router.patch(
   '/tasks/:id',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ params: numericTaskParams, body: updateTaskTypeBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid task id');
     const { taskType } = req.body;
-    if (!taskType) throw new BadRequestError('taskType is required');
     const task = await updateTaskType(id, taskType, user.id);
     res.json({ task });
   }),
@@ -65,12 +76,11 @@ router.post(
   '/tasks/:id/assign',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ params: numericTaskParams, body: assignTaskBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid task id');
     const { assigneeId } = req.body;
-    if (!assigneeId) throw new BadRequestError('assigneeId is required');
     const task = await assignTask(id, assigneeId, user.id);
     res.json({ task });
   }),
@@ -81,10 +91,10 @@ router.post(
   '/tasks/:id/start',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ params: numericTaskParams }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid task id');
     const task = await startTask(id, user.id);
     res.json({ task });
   }),
@@ -95,10 +105,10 @@ router.post(
   '/tasks/:id/complete',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ params: numericTaskParams }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid task id');
     const task = await completeTask(id, user.id);
     res.json({ task });
   }),
@@ -109,10 +119,10 @@ router.post(
   '/daily-board',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ body: dailyBoardBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { taskDate } = req.body;
-    if (!taskDate) throw new BadRequestError('taskDate is required');
     const tasks = await generateDailyTaskBoard(taskDate, user.id);
     res.status(201).json({ tasks, count: tasks.length });
   }),
@@ -132,9 +142,9 @@ router.get(
 router.get(
   '/tasks/room/:id',
   authenticate,
+  validate({ params: taskRoomParams, query: taskRangeQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { from, to } = req.query as { from?: string; to?: string };
-    if (!from || !to) throw new BadRequestError('from and to query params are required');
+    const { from, to } = req.query as unknown as { from: string; to: string };
     const tasks = await listTasksForRoom(Number(req.params.id), from, to);
     res.json({ tasks });
   }),
@@ -144,9 +154,9 @@ router.get(
 router.get(
   '/tasks/assignee/:id',
   authenticate,
+  validate({ params: taskAssigneeParams, query: taskRangeQuery }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { from, to } = req.query as { from?: string; to?: string };
-    if (!from || !to) throw new BadRequestError('from and to query params are required');
+    const { from, to } = req.query as unknown as { from: string; to: string };
     const tasks = await listTasksForAssignee(Number(req.params.id), from, to);
     res.json({ tasks });
   }),
@@ -157,10 +167,10 @@ router.post(
   '/inspect/:taskId',
   authenticate,
   requireRole('admin', 'manager', 'housekeeping'),
+  validate({ params: inspectParams }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const taskId = Number(req.params.taskId);
-    if (isNaN(taskId)) throw new BadRequestError('Invalid task id');
     const task = await inspectRoom(taskId, user.id);
     res.json({ task });
   }),

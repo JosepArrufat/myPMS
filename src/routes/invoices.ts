@@ -2,8 +2,21 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { validate } from '../middleware/validate.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
 import { BadRequestError, NotFoundError } from '../errors.js';
+import {
+  generateInvoiceBody,
+  addChargeBody,
+  recordPaymentBody,
+  refundBody,
+  transferChargeBody,
+  splitFolioBody,
+  collectDepositBody,
+  applyDepositBody,
+  refundDepositBody,
+} from '../schemas/invoices.js';
+import { numericIdParams } from '../schemas/shared.js';
 
 import {
   findInvoiceByNumber,
@@ -46,10 +59,10 @@ invoicesRouter.post(
   '/generate',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: generateInvoiceBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { reservationId } = req.body;
-    if (!reservationId) throw new BadRequestError('reservationId is required');
     const invoice = await generateInvoice(reservationId, user.id);
     if ((invoice as any)._alreadyExists) {
       const { _alreadyExists, ...data } = invoice as any;
@@ -122,6 +135,7 @@ invoicesRouter.post(
   '/:id/charge',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: addChargeBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const item = await addCharge(req.params.id as string, req.body, user.id);
@@ -134,10 +148,9 @@ invoicesRouter.delete(
   '/items/:id',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ params: numericIdParams }),
   asyncHandler(async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    if (isNaN(id)) throw new BadRequestError('Invalid item id');
-    const item = await removeCharge(id);
+    const item = await removeCharge(Number(req.params.id));
     res.json({ item });
   }),
 );
@@ -147,6 +160,7 @@ invoicesRouter.post(
   '/:id/payment',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: recordPaymentBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const payment = await recordPayment(req.params.id as string, req.body, user.id);
@@ -159,12 +173,10 @@ invoicesRouter.post(
   '/:id/refund',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ body: refundBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { originalPaymentId, amount, reason } = req.body;
-    if (!originalPaymentId || !amount || !reason) {
-      throw new BadRequestError('originalPaymentId, amount and reason are required');
-    }
     const refund = await processRefund(
       req.params.id as string,
       originalPaymentId,
@@ -184,6 +196,7 @@ foliosRouter.post(
   '/:invoiceId/charge',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: addChargeBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const item = await postCharge(req.params.invoiceId as string, req.body, user.id);
@@ -206,12 +219,10 @@ foliosRouter.post(
   '/transfer',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ body: transferChargeBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { invoiceItemId, targetInvoiceId } = req.body;
-    if (!invoiceItemId || !targetInvoiceId) {
-      throw new BadRequestError('invoiceItemId and targetInvoiceId are required');
-    }
     const result = await transferCharge(invoiceItemId, targetInvoiceId, user.id);
     res.json(result);
   }),
@@ -222,12 +233,10 @@ foliosRouter.post(
   '/:invoiceId/split',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ body: splitFolioBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { invoiceItemIds } = req.body;
-    if (!invoiceItemIds || !Array.isArray(invoiceItemIds) || invoiceItemIds.length === 0) {
-      throw new BadRequestError('invoiceItemIds[] is required');
-    }
     const result = await splitFolio(req.params.invoiceId as string, invoiceItemIds, user.id);
     res.json(result);
   }),
@@ -241,12 +250,10 @@ depositsRouter.post(
   '/collect',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: collectDepositBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { reservationId, amount, paymentMethod, transactionReference } = req.body;
-    if (!reservationId || !amount || !paymentMethod) {
-      throw new BadRequestError('reservationId, amount and paymentMethod are required');
-    }
     const result = await collectDeposit(
       reservationId,
       amount,
@@ -263,12 +270,10 @@ depositsRouter.post(
   '/apply',
   authenticate,
   requireRole('admin', 'manager', 'front_desk'),
+  validate({ body: applyDepositBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { reservationId, finalInvoiceId } = req.body;
-    if (!reservationId || !finalInvoiceId) {
-      throw new BadRequestError('reservationId and finalInvoiceId are required');
-    }
     const result = await applyDepositToInvoice(reservationId, finalInvoiceId, user.id);
     res.json(result);
   }),
@@ -279,12 +284,10 @@ depositsRouter.post(
   '/refund',
   authenticate,
   requireRole('admin', 'manager'),
+  validate({ body: refundDepositBody }),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthenticatedRequest;
     const { reservationId, reason } = req.body;
-    if (!reservationId || !reason) {
-      throw new BadRequestError('reservationId and reason are required');
-    }
     const result = await refundDeposit(reservationId, reason, user.id);
     res.json(result);
   }),
