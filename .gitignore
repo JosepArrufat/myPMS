@@ -9,17 +9,14 @@ dist/
 .env.*
 !.env.example
 
-# Database workflow/docs (local only)
-DB_WORKFLOW.md
-QUICKREF.md
+# Markdown docs (local only)
+*.md
 
 # Drizzle migrations output (if you want to ignore generated SQL snapshots)
 src/db/migrations/
 
 # Local test scripts
 scripts/smoke-test.ts
-# Local next-steps doc (not source)
-src/next_steps.md
 
 # OS files
 .DS_Store
